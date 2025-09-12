@@ -177,14 +177,28 @@ export function SellerDashboard() {
               Manage your classified ads and track their performance
             </p>
           </div>
-          <div className="mt-4 sm:mt-0">
+          <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row gap-3">
             <button
               onClick={() => navigate('/create')}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
             >
               <PlusIcon className="h-5 w-5 mr-2" />
               Create New Listing
             </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => navigate('/subscription-dashboard')}
+                className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Subscription
+              </button>
+              <button
+                onClick={() => navigate('/change-password')}
+                className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Change Password
+              </button>
+            </div>
           </div>
         </div>
 

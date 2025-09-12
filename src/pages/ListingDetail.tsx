@@ -20,15 +20,34 @@ const ListingDetail: React.FC = () => {
 
   useEffect(() => {
     const fetchListing = async () => {
-      if (!id) return;
+      if (!id) {
+        console.error('No listing ID provided');
+        setError('No listing ID provided');
+        setLoading(false);
+        return;
+      }
       
       try {
         setLoading(true);
+        setError(null);
+        console.log('Fetching listing with ID:', id);
         const data = await getListingById(id);
+        console.log('Listing data received:', data);
+        
+        if (!data) {
+          setError('Listing not found');
+          return;
+        }
+        
         setListing(data);
         
         // Increment view count
-        await incrementListingViews(id);
+        try {
+          await incrementListingViews(id);
+        } catch (viewError) {
+          console.warn('Failed to increment view count:', viewError);
+          // Don't fail the whole operation for view count
+        }
       } catch (err: any) {
         console.error('Error fetching listing:', err);
         setError(err.message || 'Failed to load listing');
@@ -59,7 +78,7 @@ const ListingDetail: React.FC = () => {
           <p className="text-gray-600 mb-6">{error || 'This listing could not be found.'}</p>
           <button
             onClick={() => navigate('/')}
-            className="btn-primary"
+            className="bg-primary-600 text-white px-6 py-2 rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             Back to Home
           </button>
