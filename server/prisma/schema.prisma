@@ -1,0 +1,163 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  phone     String?
+  location  String?
+  zipCode   String?
+  isAdmin   Boolean  @default(false)
+  isVerified Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listings     Listing[]
+  purchases    Purchase[]
+  sales        Purchase[] @relation("Seller")
+  sentMessages Message[] @relation("Sender")
+  receivedMessages Message[] @relation("Receiver")
+  reviewsGiven Review[] @relation("Reviewer")
+  reviewsReceived Review[] @relation("Reviewee")
+  favorites    Favorite[]
+
+  @@map("users")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  icon        String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  listings Listing[]
+
+  @@map("categories")
+}
+
+model Listing {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  price       Float
+  condition   String
+  location    String
+  zipCode     String
+  latitude    Float?
+  longitude   Float?
+  isActive    Boolean  @default(true)
+  isSold      Boolean  @default(false)
+  isFeatured  Boolean  @default(false)
+  isPromoted  Boolean  @default(false)
+  promotedUntil DateTime?
+  expiresAt   DateTime
+  viewCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId     String
+  categoryId String
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  Category  @relation(fields: [categoryId], references: [id])
+  images    Image[]
+  purchases Purchase[]
+  favorites Favorite[]
+  messages  Message[]
+
+  @@map("listings")
+}
+
+model Image {
+  id        String   @id @default(cuid())
+  filename  String
+  originalName String
+  mimeType  String
+  size      Int
+  path      String
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  listingId String
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@map("images")
+}
+
+model Purchase {
+  id        String   @id @default(cuid())
+  status    String
+  totalAmount Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  buyerId   String
+  sellerId  String
+  listingId String
+
+  buyer   User    @relation(fields: [buyerId], references: [id])
+  seller  User    @relation("Seller", fields: [sellerId], references: [id])
+  listing Listing @relation(fields: [listingId], references: [id])
+
+  @@map("purchases")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  senderId   String
+  receiverId String
+  listingId  String
+
+  sender   User    @relation("Sender", fields: [senderId], references: [id])
+  receiver User    @relation("Receiver", fields: [receiverId], references: [id])
+  listing  Listing @relation(fields: [listingId], references: [id])
+
+  @@map("messages")
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  reviewerId String
+  revieweeId String
+
+  reviewer User @relation("Reviewer", fields: [reviewerId], references: [id])
+  reviewee User @relation("Reviewee", fields: [revieweeId], references: [id])
+
+  @@unique([reviewerId, revieweeId])
+  @@map("reviews")
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId    String
+  listingId String
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId])
+  @@map("favorites")
+}

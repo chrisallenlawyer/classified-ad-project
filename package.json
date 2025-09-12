@@ -1,0 +1,18 @@
+{
+  "name": "local-classifieds",
+  "version": "1.0.0",
+  "description": "Local classified ad platform for Tuscaloosa/Birmingham area",
+  "main": "index.js",
+  "scripts": {
+    "dev": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "start": "cd client && npm run preview",
+    "install:all": "npm install && cd client && npm install"
+  },
+  "keywords": ["classifieds", "marketplace", "local", "alabama"],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
