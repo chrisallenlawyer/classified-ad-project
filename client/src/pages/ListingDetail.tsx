@@ -6,7 +6,7 @@ import { ContactSellerForm } from '../components/ContactSellerForm';
 import { WatchButton } from '../components/WatchButton';
 import { useAuth } from '../contexts/AuthContext';
 import SEOHead from '../components/SEOHead';
-import { generateListingStructuredData, generateKeywords, generateBreadcrumbStructuredData } from '../utils/seo';
+import { generateListingStructuredData, generateKeywords } from '../utils/seo';
 
 const ListingDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -93,17 +93,17 @@ const ListingDetail: React.FC = () => {
     type: 'product' as const,
     publishedTime: listing.created_at,
     modifiedTime: listing.updated_at,
-    author: listing.seller_name || 'Anonymous',
-    category: listing.category,
+    author: listing.user?.user_metadata?.first_name || 'Anonymous',
+    category: listing.category?.name || 'Category',
     price: listing.price,
     currency: 'USD',
-    availability: listing.is_available ? 'in stock' as const : 'out of stock' as const
+    availability: listing.is_active ? 'in stock' as const : 'out of stock' as const
   };
 
   // Generate breadcrumbs
   const breadcrumbs = [
     { name: 'Home', url: '/' },
-    { name: listing.category || 'Category', url: `/search?category=${listing.category}` },
+    { name: listing.category?.name || 'Category', url: `/search?category=${listing.category?.id}` },
     { name: listing.title, url: window.location.href }
   ];
 
@@ -304,9 +304,9 @@ const ListingDetail: React.FC = () => {
                   <div>
                     <span className="font-medium">Status:</span> 
                     <span className={`ml-1 capitalize ${
-                      listing.status === 'active' ? 'text-green-600' : 'text-gray-600'
+                      listing.is_active ? 'text-green-600' : 'text-gray-600'
                     }`}>
-                      {listing.status}
+                      {listing.is_active ? 'active' : 'inactive'}
                     </span>
                   </div>
                 </div>

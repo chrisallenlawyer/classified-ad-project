@@ -42,7 +42,7 @@ export function FeaturedListings() {
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {featuredListings?.data?.map((listing: any) => (
+        {featuredListings?.map((listing: any) => (
           <ListingCard 
             key={listing.id} 
             listing={listing} 

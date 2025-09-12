@@ -236,6 +236,10 @@ export const getPopularListings = async (limit: number = 6): Promise<Listing[]> 
   return getListings({ limit, sort: 'view_count', order: 'desc' })
 }
 
+export const getPromotedListings = async (limit: number = 6): Promise<Listing[]> => {
+  return getListings({ promoted: true, limit, sort: 'created_at', order: 'desc' })
+}
+
 export const getListingById = async (id: string): Promise<Listing | null> => {
   const { data: listing, error } = await supabase
     .from('listings')

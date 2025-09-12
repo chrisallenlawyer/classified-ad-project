@@ -8,8 +8,6 @@ import {
   EyeSlashIcon, 
   SwatchIcon, 
   CurrencyDollarIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
   UsersIcon,
   ListBulletIcon,
   EnvelopeIcon,
@@ -25,12 +23,12 @@ import CollapsibleSection from '../components/CollapsibleSection';
 interface Category {
   id: string;
   name: string;
-  description: string;
-  icon: string;
-  isActive: boolean;
-  isVehicle: boolean;
-  createdAt: string;
-  updatedAt: string;
+  description: string | null;
+  icon: string | null;
+  is_active: boolean;
+  is_vehicle: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export function AdminDashboard() {
@@ -80,7 +78,6 @@ export function AdminDashboard() {
 
   // Admin features state
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-  const [selectedListings, setSelectedListings] = useState<string[]>([]);
   const [emailSubject, setEmailSubject] = useState('');
   const [emailMessage, setEmailMessage] = useState('');
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -152,7 +149,7 @@ export function AdminDashboard() {
 
   const handleApproveListing = async (listingId: string) => {
     try {
-      await updateListing(listingId, { is_active: true });
+      await updateListing(listingId, { is_active: true } as any);
       queryClient.invalidateQueries('admin-listings');
     } catch (error) {
       console.error('Error approving listing:', error);
@@ -161,7 +158,7 @@ export function AdminDashboard() {
 
   const handleRejectListing = async (listingId: string) => {
     try {
-      await updateListing(listingId, { is_active: false });
+      await updateListing(listingId, { is_active: false } as any);
       queryClient.invalidateQueries('admin-listings');
     } catch (error) {
       console.error('Error rejecting listing:', error);
@@ -310,7 +307,7 @@ export function AdminDashboard() {
   const toggleCategoryStatus = (category: Category) => {
     updateCategoryMutation.mutate({
       id: category.id,
-      data: { ...category, isActive: !category.isActive }
+      data: { ...category, is_active: !category.is_active }
     });
   };
 
@@ -470,23 +467,23 @@ export function AdminDashboard() {
               <div
                 key={category.id}
                 className={`flex items-center justify-between p-4 rounded-lg border ${
-                  category.isActive ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-300'
+                  category.is_active ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-300'
                 }`}
               >
                 <div className="flex items-center space-x-4">
                   <span className="text-2xl">{category.icon}</span>
                   <div>
                     <div className="flex items-center space-x-2">
-                      <h3 className={`font-medium ${category.isActive ? 'text-gray-900' : 'text-gray-500'}`}>
+                      <h3 className={`font-medium ${category.is_active ? 'text-gray-900' : 'text-gray-500'}`}>
                         {category.name}
                       </h3>
-                      {category.isVehicle && (
+                      {category.is_vehicle && (
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                           🚗 Vehicle
                         </span>
                       )}
                     </div>
-                    <p className={`text-sm ${category.isActive ? 'text-gray-600' : 'text-gray-400'}`}>
+                    <p className={`text-sm ${category.is_active ? 'text-gray-600' : 'text-gray-400'}`}>
                       {category.description || 'No description'}
                     </p>
                   </div>
@@ -495,13 +492,13 @@ export function AdminDashboard() {
                   <button
                     onClick={() => toggleCategoryStatus(category)}
                     className={`p-2 rounded-lg ${
-                      category.isActive
+                      category.is_active
                         ? 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                         : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
                     }`}
-                    title={category.isActive ? 'Hide category' : 'Show category'}
+                    title={category.is_active ? 'Hide category' : 'Show category'}
                   >
-                    {category.isActive ? (
+                    {category.is_active ? (
                       <EyeSlashIcon className="h-4 w-4" />
                     ) : (
                       <EyeIcon className="h-4 w-4" />
@@ -552,7 +549,7 @@ export function AdminDashboard() {
                     </label>
                     <input
                       type="text"
-                      value={editingCategory.description}
+                      value={editingCategory.description || ''}
                       onChange={(e) => setEditingCategory({ ...editingCategory, description: e.target.value })}
                       className="input-field"
                     />
@@ -563,7 +560,7 @@ export function AdminDashboard() {
                     </label>
                     <input
                       type="text"
-                      value={editingCategory.icon}
+                      value={editingCategory.icon || ''}
                       onChange={(e) => setEditingCategory({ ...editingCategory, icon: e.target.value })}
                       className="input-field"
                     />
@@ -573,8 +570,8 @@ export function AdminDashboard() {
                       <input
                         type="checkbox"
                         id="isActive"
-                        checked={editingCategory.isActive}
-                        onChange={(e) => setEditingCategory({ ...editingCategory, isActive: e.target.checked })}
+                        checked={editingCategory.is_active}
+                        onChange={(e) => setEditingCategory({ ...editingCategory, is_active: e.target.checked })}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       />
                       <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900">
@@ -585,8 +582,8 @@ export function AdminDashboard() {
                       <input
                         type="checkbox"
                         id="isVehicle"
-                        checked={editingCategory.isVehicle}
-                        onChange={(e) => setEditingCategory({ ...editingCategory, isVehicle: e.target.checked })}
+                        checked={editingCategory.is_vehicle}
+                        onChange={(e) => setEditingCategory({ ...editingCategory, is_vehicle: e.target.checked })}
                         className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                       />
                       <label htmlFor="isVehicle" className="ml-2 block text-sm text-gray-900">

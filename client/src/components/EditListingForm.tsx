@@ -48,8 +48,13 @@ const EditListingForm: React.FC = () => {
         if (id) {
           const listingData = await getListingById(id);
           
+          if (!listingData) {
+            setError('Listing not found');
+            return;
+          }
+          
           // Check if user owns this listing
-          const listingUserId = listingData.user?.id || listingData.userId;
+          const listingUserId = listingData.user?.id || listingData.user_id;
           console.log('🔍 User ID from auth:', user?.id);
           console.log('🔍 Listing user ID:', listingUserId);
           console.log('🔍 User type:', typeof user?.id);
@@ -63,16 +68,16 @@ const EditListingForm: React.FC = () => {
 
           // Populate form data
           console.log('📝 Listing data received:', listingData);
-          console.log('📝 Category ID:', listingData.categoryId);
-          console.log('📝 Zip Code:', listingData.zipCode);
+          console.log('📝 Category ID:', listingData.category_id);
+          console.log('📝 Zip Code:', listingData.zip_code);
           
           setFormData({
             title: listingData.title,
             description: listingData.description,
             price: listingData.price.toString(),
-            category_id: listingData.categoryId || '',
+            category_id: listingData.category_id || '',
             location: listingData.location,
-            zip_code: listingData.zipCode || '',
+            zip_code: listingData.zip_code || '',
             contact_email: listingData.contact_email || '',
             contact_phone: listingData.contact_phone || '',
             condition: listingData.condition || 'good',
@@ -84,9 +89,9 @@ const EditListingForm: React.FC = () => {
             const existingImages: UploadedImage[] = listingData.images.map(img => ({
               imageUrl: img.path.startsWith('/') ? img.path : `/${img.path}`,
               filename: img.filename || 'existing-image',
-              originalName: img.originalName || 'existing-image',
+              originalName: img.original_name || 'existing-image',
               size: img.size || 0,
-              mimeType: img.mimeType || 'image/jpeg'
+              mimeType: img.mime_type || 'image/jpeg'
             }));
             setImages(existingImages);
           }

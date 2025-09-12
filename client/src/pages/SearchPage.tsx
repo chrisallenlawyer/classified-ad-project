@@ -310,7 +310,7 @@ const SearchPage: React.FC = () => {
             ) : error ? (
               <div className="text-center py-12">
                 <div className="text-red-600 mb-4">Error loading search results</div>
-                <p className="text-gray-600">{error.message}</p>
+                <p className="text-gray-600">{error?.message || 'An error occurred'}</p>
               </div>
             ) : listings && listings.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

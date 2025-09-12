@@ -243,7 +243,7 @@ const CreateListingForm: React.FC = () => {
   };
 
   // Handle payment success
-  const handlePaymentSuccess = async (paymentId: string) => {
+  const handlePaymentSuccess = async (_paymentId: string) => {
     setShowPaymentForm(false);
     // Continue with listing creation
     await createListing();
@@ -269,13 +269,11 @@ const CreateListingForm: React.FC = () => {
       
       let finalListingType = formData.listing_type;
       let finalListingFee = 0;
-      let isFeatured = false;
       
       if (isVehicleCategory) {
         // For vehicle categories, determine if it's featured + vehicle
         if (formData.listing_type === 'featured') {
           finalListingType = 'vehicle';
-          isFeatured = true;
           finalListingFee = paymentAmount || ((pricingConfig.vehicle_listing_price?.amount || 20) + (pricingConfig.featured_listing_price?.amount || 5));
         } else {
           finalListingType = 'vehicle';
@@ -283,7 +281,6 @@ const CreateListingForm: React.FC = () => {
         }
       } else if (formData.listing_type !== 'free') {
         finalListingFee = paymentAmount || 0;
-        isFeatured = formData.listing_type === 'featured';
       }
 
       const listingData = {
@@ -298,10 +295,8 @@ const CreateListingForm: React.FC = () => {
         condition: formData.condition,
         expires_at: expirationDate.toISOString(),
         images: images,
-        user_id: user?.id,
         listing_type: finalListingType,
-        listing_fee: finalListingFee,
-        is_featured: isFeatured
+        listing_fee: finalListingFee
       };
 
       console.log('About to call createListingWithImages with:', listingData);
@@ -480,7 +475,8 @@ const CreateListingForm: React.FC = () => {
                     contact_email: '',
                     contact_phone: '',
                     condition: 'good',
-                    expires_at: ''
+                    expires_at: '',
+                    listing_type: 'free' as 'free' | 'featured' | 'vehicle'
                   });
                 }}
                 className="text-sm text-gray-500 hover:text-gray-700 underline"
