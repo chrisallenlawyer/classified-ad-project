@@ -1,0 +1,10 @@
+# Ignore TypeScript checking
+tsconfig.json
+tsconfig.node.json
+
+# Ignore server files
+server/
+node_modules/
+
+# Only build the client
+client/
