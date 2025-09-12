@@ -55,6 +55,9 @@ export function Header() {
                     <span className="text-gray-700">
                       Welcome, {user.user_metadata?.first_name || user.email}
                     </span>
+                    <Link to="/change-password" className="text-gray-700 hover:text-primary-600 font-medium">
+                      Change Password
+                    </Link>
                     <button
                       onClick={handleSignOut}
                       className="text-gray-700 hover:text-primary-600 font-medium"
@@ -138,6 +141,13 @@ export function Header() {
                         <div className="text-gray-700 mb-2">
                           Welcome, {user.user_metadata?.first_name || user.email}
                         </div>
+                        <Link
+                          to="/change-password"
+                          className="block py-2 text-gray-700 hover:text-primary-600 font-medium"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          Change Password
+                        </Link>
                         <button
                           onClick={() => {
                             handleSignOut();
