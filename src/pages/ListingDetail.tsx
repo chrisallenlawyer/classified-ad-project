@@ -31,14 +31,21 @@ const ListingDetail: React.FC = () => {
         setLoading(true);
         setError(null);
         console.log('Fetching listing with ID:', id);
+        console.log('Current URL:', window.location.href);
+        
+        // Add a small delay to ensure the listing is fully created
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
         const data = await getListingById(id);
         console.log('Listing data received:', data);
         
         if (!data) {
+          console.error('Listing not found for ID:', id);
           setError('Listing not found');
           return;
         }
         
+        console.log('Setting listing data:', data);
         setListing(data);
         
         // Increment view count
@@ -50,6 +57,7 @@ const ListingDetail: React.FC = () => {
         }
       } catch (err: any) {
         console.error('Error fetching listing:', err);
+        console.error('Error details:', err);
         setError(err.message || 'Failed to load listing');
       } finally {
         setLoading(false);

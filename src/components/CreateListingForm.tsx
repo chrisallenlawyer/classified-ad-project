@@ -302,6 +302,8 @@ const CreateListingForm: React.FC = () => {
       console.log('About to call createListingWithImages with:', listingData);
       const newListing = await createListingWithImages(listingData, user);
       console.log('Listing created successfully:', newListing);
+      console.log('Navigating to listing detail page:', `/listing/${newListing.id}`);
+      console.log('New listing ID:', newListing.id);
       navigate(`/listing/${newListing.id}`);
     } catch (err: any) {
       console.error('Error creating listing:', err);
