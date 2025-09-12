@@ -1,7 +1,0 @@
-# Ignore server files
-server/
-node_modules/
-
-# Ignore root package files
-package.json
-package-lock.json
