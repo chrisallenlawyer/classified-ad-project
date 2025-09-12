@@ -6,5 +6,6 @@ tsconfig.node.json
 server/
 node_modules/
 
-# Only build the client
-client/
+# Ignore root package files
+package.json
+package-lock.json
