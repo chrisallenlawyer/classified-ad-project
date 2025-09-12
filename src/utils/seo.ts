@@ -77,7 +77,7 @@ export const generateKeywords = (listing: any): string => {
   const keywords = [];
   
   if (listing.title) keywords.push(listing.title.toLowerCase());
-  if (listing.category) keywords.push(listing.category.toLowerCase());
+  if (listing.category?.name) keywords.push(listing.category.name.toLowerCase());
   if (listing.location) keywords.push(listing.location.toLowerCase());
   if (listing.condition) keywords.push(listing.condition.toLowerCase());
   if (listing.brand) keywords.push(listing.brand.toLowerCase());
@@ -120,7 +120,7 @@ export const generateListingStructuredData = (listing: any): StructuredData => {
       priceCurrency: 'USD',
       availability: listing.is_available ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock'
     },
-    category: listing.category,
+    category: listing.category?.name,
     condition: listing.condition,
     brand: listing.brand,
     model: listing.model,
