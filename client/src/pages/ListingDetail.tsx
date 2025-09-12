@@ -5,6 +5,8 @@ import { Listing } from '../services/supabaseApi';
 import { ContactSellerForm } from '../components/ContactSellerForm';
 import { WatchButton } from '../components/WatchButton';
 import { useAuth } from '../contexts/AuthContext';
+import SEOHead from '../components/SEOHead';
+import { generateListingStructuredData, generateKeywords, generateBreadcrumbStructuredData } from '../utils/seo';
 
 const ListingDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -81,8 +83,39 @@ const ListingDetail: React.FC = () => {
     });
   };
 
+  // Generate SEO data
+  const seoData = {
+    title: listing.title,
+    description: listing.description || `Find ${listing.title} for sale. ${listing.price ? `Price: $${listing.price}` : 'Contact for price'}. ${listing.location ? `Located in ${listing.location}` : ''}`,
+    keywords: generateKeywords(listing),
+    image: listing.images?.[0]?.path || '/default-listing.jpg',
+    url: window.location.href,
+    type: 'product' as const,
+    publishedTime: listing.created_at,
+    modifiedTime: listing.updated_at,
+    author: listing.seller_name || 'Anonymous',
+    category: listing.category,
+    price: listing.price,
+    currency: 'USD',
+    availability: listing.is_available ? 'in stock' as const : 'out of stock' as const
+  };
+
+  // Generate breadcrumbs
+  const breadcrumbs = [
+    { name: 'Home', url: '/' },
+    { name: listing.category || 'Category', url: `/search?category=${listing.category}` },
+    { name: listing.title, url: window.location.href }
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <>
+      <SEOHead 
+        seoData={seoData}
+        structuredData={generateListingStructuredData(listing)}
+        breadcrumbs={breadcrumbs}
+        canonicalUrl={window.location.href}
+      />
+      <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Back button */}
         <button
@@ -293,7 +326,8 @@ const ListingDetail: React.FC = () => {
           onSuccess={() => setContactSuccess(true)}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

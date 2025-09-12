@@ -4,6 +4,8 @@ import { FireIcon } from '@heroicons/react/24/outline';
 import { getCategories, getFeaturedListings, getNewestListings, getPopularListings } from '../services/supabaseApi';
 import { HeroSection } from '../components/HeroSection';
 import { PhotoGrid } from '../components/PhotoGrid';
+import SEOHead from '../components/SEOHead';
+import { defaultSEO, generateWebsiteStructuredData } from '../utils/seo';
 
 export function HomePage() {
   const { data: categories, isLoading: categoriesLoading } = useQuery('categories', getCategories);
@@ -12,9 +14,20 @@ export function HomePage() {
   const { data: popularListings, isLoading: popularLoading } = useQuery('popular-listings', () => getPopularListings(6));
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Hero Section */}
-      <HeroSection />
+    <>
+      <SEOHead 
+        seoData={{
+          ...defaultSEO,
+          title: 'Classified Ads - Buy, Sell, Trade Anything',
+          description: 'Find great deals on classified ads. Buy, sell, and trade anything from cars to electronics, furniture to real estate. Safe, secure, and easy to use.',
+          keywords: 'classified ads, buy sell, marketplace, local ads, online classifieds, trading, second hand, used items, cars, electronics, furniture, real estate',
+          url: window.location.href
+        }}
+        structuredData={generateWebsiteStructuredData()}
+      />
+      <div className="min-h-screen bg-gray-50">
+        {/* Hero Section */}
+        <HeroSection />
 
       {/* Featured Listings - Above the Fold */}
       <div className="bg-white">
@@ -152,6 +165,7 @@ export function HomePage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
