@@ -373,28 +373,24 @@ const CreateListingForm: React.FC = () => {
         console.log('User subscription:', userSubscription);
         console.log('User usage:', userUsage);
         
-        const canCreate = await subscriptionApi.canUserCreateListing(user.id, formData.listing_type);
-        console.log('Can create listing:', canCreate);
+        const limitCheck = await subscriptionApi.canUserCreateListing(user.id, formData.listing_type);
+        console.log('Can create listing:', limitCheck);
         
-        if (!canCreate) {
-          const plan = userSubscription?.subscription_plan;
-          const usage = userUsage;
-          
-          if (formData.listing_type === 'free') {
-            const freeLimit = plan?.max_listings || 5;
-            const used = usage?.free_listings_used || 0;
-            setLimitError(`You've reached your free listing limit (${used}/${freeLimit}). Please upgrade your plan or wait until next month.`);
-          } else if (formData.listing_type === 'featured') {
-            const featuredLimit = plan?.max_featured_listings || 0;
-            const used = usage?.featured_listings_used || 0;
-            setLimitError(`You've reached your featured listing limit (${used}/${featuredLimit}). Please upgrade your plan or wait until next month.`);
-          } else if (formData.listing_type === 'vehicle') {
-            const vehicleLimit = plan?.max_vehicle_listings || 0;
-            const used = usage?.vehicle_listings_used || 0;
-            setLimitError(`You've reached your vehicle listing limit (${used}/${vehicleLimit}). Please upgrade your plan or wait until next month.`);
+        if (!limitCheck.canCreate) {
+          if (limitCheck.requiresPayment && limitCheck.additionalCost) {
+            // User needs to pay for additional listing/modifier
+            setLimitError(limitCheck.reason || 'Payment required for this listing.');
+            setShowPaymentOption(true);
+            setAdditionalListingCost(limitCheck.additionalCost);
+            setPaymentType(limitCheck.paymentType || 'additional_basic');
+            setIsLoading(false);
+            return;
+          } else {
+            // User has reached limits and cannot pay for additional
+            setLimitError(limitCheck.reason || 'You have reached your listing limits.');
+            setIsLoading(false);
+            return;
           }
-          setIsLoading(false);
-          return;
         }
       } catch (error) {
         console.error('Error checking listing limits:', error);
@@ -847,19 +843,44 @@ const CreateListingForm: React.FC = () => {
               {/* Payment Info - Only show if user has reached free limit */}
               {showPaymentOption && (
                 <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-center">
-                    <CreditCardIcon className="h-5 w-5 text-yellow-500 mr-2" />
-                    <div>
-                      <p className="text-sm font-medium text-yellow-900">
-                        {paymentType === 'additional_basic' && 'Additional Basic Listing Fee Required'}
-                        {paymentType === 'additional_featured' && 'Additional Featured Listing Fee Required'}
-                        {paymentType === 'additional_vehicle' && 'Additional Vehicle Listing Fee Required'}
-                      </p>
-                      <p className="text-xs text-yellow-700">
-                        {paymentType === 'additional_basic' && `You've reached your free listing limit. Additional basic listings cost $${additionalListingCost}.`}
-                        {paymentType === 'additional_featured' && `You've used all featured listings in your free pool. Additional featured listings cost $${additionalListingCost}.`}
-                        {paymentType === 'additional_vehicle' && `You've used all vehicle listings in your free pool. Additional vehicle listings cost $${additionalListingCost}.`}
-                      </p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <CreditCardIcon className="h-5 w-5 text-yellow-500 mr-2" />
+                      <div>
+                        <p className="text-sm font-medium text-yellow-900">
+                          {paymentType === 'additional_basic' && 'Additional Basic Listing Fee Required'}
+                          {paymentType === 'additional_featured' && 'Additional Featured Listing Fee Required'}
+                          {paymentType === 'additional_vehicle' && 'Additional Vehicle Listing Fee Required'}
+                        </p>
+                        <p className="text-xs text-yellow-700">
+                          {paymentType === 'additional_basic' && `You've reached your free listing limit. Additional basic listings cost $${additionalListingCost}.`}
+                          {paymentType === 'additional_featured' && `You've used all featured listings in your free pool. Additional featured listings cost $${additionalListingCost}.`}
+                          {paymentType === 'additional_vehicle' && `You've used all vehicle listings in your free pool. Additional vehicle listings cost $${additionalListingCost}.`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPaymentAmount(additionalListingCost);
+                          setShowPaymentForm(true);
+                        }}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                      >
+                        <CreditCardIcon className="h-4 w-4 mr-2" />
+                        Pay ${additionalListingCost}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowPaymentOption(false);
+                          setLimitError('');
+                        }}
+                        className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   </div>
                 </div>
