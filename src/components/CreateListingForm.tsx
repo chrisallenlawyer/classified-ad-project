@@ -128,9 +128,26 @@ const CreateListingForm: React.FC = () => {
       [name]: value
     };
     
-    // In the new system, all listing types are available for all categories
-    // The type just determines if it's featured/vehicle, but all count against the free pool
-    // No need to change listing_type based on category
+    // If category is changed, check if it's a vehicle category
+    if (name === 'category_id') {
+      const selectedCategory = categories.find(cat => cat.id === value);
+      if (selectedCategory?.is_vehicle) {
+        // For vehicle categories, only allow vehicle or featured (not free)
+        if (formData.listing_type === 'free') {
+          newFormData = {
+            ...newFormData,
+            listing_type: 'vehicle'
+          };
+        }
+        // If already featured or vehicle, keep it
+      } else if (formData.listing_type === 'vehicle') {
+        // If switching away from vehicle category, reset to free
+        newFormData = {
+          ...newFormData,
+          listing_type: 'free'
+        };
+      }
+    }
     
     setFormData(newFormData);
     
@@ -248,14 +265,26 @@ const CreateListingForm: React.FC = () => {
       // Determine if this is a paid additional listing
       const isPaidAdditional = showPaymentOption && additionalListingCost > 0;
       
-      // In the new system, all listings are free until the pool is exhausted
-      // The listing type determines the features (featured/vehicle) but all count against free pool
+      // Determine the base listing type and featured status
+      const selectedCategory = categories.find(cat => cat.id === formData.category_id);
+      const isVehicleCategory = selectedCategory?.is_vehicle;
+      const isFeatured = formData.listing_type === 'featured';
+      
       let finalListingType = formData.listing_type;
       let finalListingFee = 0;
       
       // If user has reached free limit, they need to pay for additional listings
       if (isPaidAdditional) {
         finalListingFee = additionalListingCost;
+      }
+      
+      // Determine the actual listing type based on category and featured status
+      if (isVehicleCategory) {
+        finalListingType = 'vehicle';
+      } else if (isFeatured) {
+        finalListingType = 'featured';
+      } else {
+        finalListingType = 'free';
       }
 
       const listingData = {
@@ -272,7 +301,7 @@ const CreateListingForm: React.FC = () => {
         images: images,
         listing_type: finalListingType,
         listing_fee: finalListingFee,
-        is_featured: finalListingType === 'featured',
+        is_featured: isFeatured,
         is_promoted: false // Promoted is separate from featured
       };
 
@@ -639,17 +668,28 @@ const CreateListingForm: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Free Listing */}
                 <div
-                  className={`relative border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                  className={`relative border-2 rounded-lg p-4 transition-all ${
                     formData.listing_type === 'free'
                       ? 'border-primary-500 bg-primary-50'
                       : 'border-gray-200 hover:border-gray-300'
+                  } ${
+                    formData.category_id && categories.find(cat => cat.id === formData.category_id)?.is_vehicle
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'cursor-pointer'
                   }`}
-                  onClick={() => handleListingTypeChange('free')}
+                  onClick={() => {
+                    if (!(formData.category_id && categories.find(cat => cat.id === formData.category_id)?.is_vehicle)) {
+                      handleListingTypeChange('free');
+                    }
+                  }}
                 >
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-sm font-medium text-gray-900">Free Listing</h3>
                       <p className="text-xs text-gray-600 mt-1">Basic listing visibility</p>
+                      {formData.category_id && categories.find(cat => cat.id === formData.category_id)?.is_vehicle && (
+                        <p className="text-xs text-red-600 mt-1">Not available for vehicle categories</p>
+                      )}
                     </div>
                     <div className="flex items-center">
                       {formData.listing_type === 'free' && (
@@ -710,6 +750,35 @@ const CreateListingForm: React.FC = () => {
                     </div>
                   </div>
                   <div className="mt-2 text-lg font-bold text-green-600">$0</div>
+                </div>
+              </div>
+
+              {/* Featured Modifier Checkbox */}
+              <div className="mt-6">
+                <div className="flex items-center">
+                  <input
+                    id="is_featured_modifier"
+                    type="checkbox"
+                    checked={formData.listing_type === 'featured'}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        handleListingTypeChange('featured');
+                      } else {
+                        // If unchecking featured, go back to the base type
+                        const selectedCategory = categories.find(cat => cat.id === formData.category_id);
+                        if (selectedCategory?.is_vehicle) {
+                          handleListingTypeChange('vehicle');
+                        } else {
+                          handleListingTypeChange('free');
+                        }
+                      }
+                    }}
+                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="is_featured_modifier" className="ml-2 block text-sm text-gray-900">
+                    <span className="font-medium">Make this listing featured</span>
+                    <span className="text-gray-500 ml-1">(Enhanced visibility with featured badge)</span>
+                  </label>
                 </div>
               </div>
 

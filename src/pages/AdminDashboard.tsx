@@ -687,7 +687,10 @@ export function AdminDashboard() {
               <p className="text-sm text-gray-600 mb-3">Set prices for additional listings and modifiers.</p>
               <div className="text-xs text-gray-500">Additional Basic, Featured, Vehicle listings</div>
               <button
-                onClick={() => setShowPricingManager(true)}
+                onClick={() => {
+                  console.log('Pricing manager button clicked');
+                  setShowPricingManager(true);
+                }}
                 className="mt-2 inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-white bg-primary-600 hover:bg-primary-700"
               >
                 Manage Pricing

@@ -20,6 +20,8 @@ interface PricingConfig {
 }
 
 export function PricingManager({ onClose }: PricingManagerProps) {
+  console.log('PricingManager component rendered');
+  
   const [editingConfig, setEditingConfig] = useState<PricingConfig | null>(null);
   const [formData, setFormData] = useState({
     config_value: 0,
