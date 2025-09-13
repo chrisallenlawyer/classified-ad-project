@@ -211,8 +211,15 @@ export const subscriptionApi = {
     return data || [];
   },
 
-  // Check if user can create listing (new logic: free listings are a pool)
-  async canUserCreateListing(userId: string, listingType: 'free' | 'featured' | 'vehicle'): Promise<{ canCreate: boolean; reason?: string; canPayForAdditional?: boolean; additionalCost?: number }> {
+  // Check if user can create listing (corrected logic)
+  async canUserCreateListing(userId: string, listingType: 'free' | 'featured' | 'vehicle'): Promise<{ 
+    canCreate: boolean; 
+    reason?: string; 
+    canPayForAdditional?: boolean; 
+    additionalCost?: number;
+    requiresPayment?: boolean;
+    paymentType?: 'additional_listing' | 'vehicle_modifier' | 'featured_modifier';
+  }> {
     console.log('API: Checking canUserCreateListing for:', userId, listingType);
     
     try {
@@ -231,32 +238,70 @@ export const subscriptionApi = {
         vehicle_listings_used: 0
       };
 
-      // Get free listing limit (this is the total pool of free listings)
+      // Get limits
       let freeLimit = 5; // Default free limit
       if (subscription?.subscription_plan) {
         freeLimit = subscription.subscription_plan.max_listings || 5;
       }
 
       const freeUsed = currentUsage.free_listings_used || 0;
-      const canCreateFree = freeUsed < freeLimit;
+      const featuredUsed = currentUsage.featured_listings_used || 0;
+      const vehicleUsed = currentUsage.vehicle_listings_used || 0;
 
-      console.log(`API: Free limit check: ${freeUsed}/${freeLimit}, canCreate: ${canCreateFree}`);
+      console.log(`API: Usage - Free: ${freeUsed}/${freeLimit}, Featured: ${featuredUsed}, Vehicle: ${vehicleUsed}`);
 
-      // If user can create free listings, they can create any type (free, featured, vehicle)
-      if (canCreateFree) {
+      // Check if user has free listings remaining
+      const hasFreeListings = freeUsed < freeLimit;
+
+      if (hasFreeListings) {
+        // User can create any type of listing for free
         return { 
           canCreate: true,
-          canPayForAdditional: true // They can always pay for more after free limit
+          canPayForAdditional: true,
+          requiresPayment: false
         };
       }
 
-      // If free limit reached, check if they can pay for additional listings
-      const additionalCost = await this.getAdditionalListingCost();
+      // No free listings remaining - check if they can pay for additional
+      if (listingType === 'free') {
+        // Basic free listing - they can pay for additional
+        const additionalCost = await this.getAdditionalListingCost();
+        return {
+          canCreate: false,
+          reason: `You've reached your free listing limit (${freeLimit}). You can pay $${additionalCost} for additional listings.`,
+          canPayForAdditional: true,
+          additionalCost,
+          requiresPayment: true,
+          paymentType: 'additional_listing'
+        };
+      } else if (listingType === 'featured') {
+        // Featured listing - they can pay for featured modifier
+        const featuredCost = await this.getAdditionalModifierCost('featured');
+        return {
+          canCreate: false,
+          reason: `You've reached your free listing limit (${freeLimit}). You can pay $${featuredCost} to make this listing featured.`,
+          canPayForAdditional: true,
+          additionalCost: featuredCost,
+          requiresPayment: true,
+          paymentType: 'featured_modifier'
+        };
+      } else if (listingType === 'vehicle') {
+        // Vehicle listing - they can pay for vehicle modifier
+        const vehicleCost = await this.getAdditionalModifierCost('vehicle');
+        return {
+          canCreate: false,
+          reason: `You've reached your free listing limit (${freeLimit}). You can pay $${vehicleCost} to make this listing a vehicle listing.`,
+          canPayForAdditional: true,
+          additionalCost: vehicleCost,
+          requiresPayment: true,
+          paymentType: 'vehicle_modifier'
+        };
+      }
+
       return {
         canCreate: false,
-        reason: `You've reached your free listing limit (${freeLimit}). You can pay $${additionalCost} for additional listings.`,
-        canPayForAdditional: true,
-        additionalCost
+        reason: 'Unable to determine listing type.',
+        canPayForAdditional: false
       };
 
     } catch (error) {
@@ -298,6 +343,90 @@ export const subscriptionApi = {
     } catch (error) {
       console.error(`Error getting ${type} modifier cost:`, error);
       return type === 'featured' ? 2.99 : 4.99;
+    }
+  },
+
+  // Update user usage tracking (corrected logic)
+  async updateUserListingUsage(userId: string, listingType: 'free' | 'featured' | 'vehicle', isPaidAdditional: boolean = false): Promise<void> {
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+    
+    try {
+      // Get current usage record
+      const { data: existingUsage, error: fetchError } = await supabase
+        .from('user_listing_usage')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('month_year', currentMonth)
+        .single();
+      
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Error fetching usage data:', fetchError);
+        return;
+      }
+
+      const currentUsage = existingUsage || {
+        free_listings_used: 0,
+        featured_listings_used: 0,
+        vehicle_listings_used: 0,
+        total_listings_created: 0
+      };
+
+      // Update usage based on listing type and payment status
+      const updates: any = {
+        total_listings_created: currentUsage.total_listings_created + 1
+      };
+
+      if (isPaidAdditional) {
+        // Paid additional listing - only count the specific type, not free
+        if (listingType === 'featured') {
+          updates.featured_listings_used = (currentUsage.featured_listings_used || 0) + 1;
+        } else if (listingType === 'vehicle') {
+          updates.vehicle_listings_used = (currentUsage.vehicle_listings_used || 0) + 1;
+        }
+        // Don't increment free_listings_used for paid additional listings
+      } else {
+        // Free listing - count against free pool and any modifiers
+        updates.free_listings_used = (currentUsage.free_listings_used || 0) + 1;
+        
+        if (listingType === 'featured') {
+          updates.featured_listings_used = (currentUsage.featured_listings_used || 0) + 1;
+        }
+        if (listingType === 'vehicle') {
+          updates.vehicle_listings_used = (currentUsage.vehicle_listings_used || 0) + 1;
+        }
+      }
+
+      updates.updated_at = new Date().toISOString();
+
+      if (existingUsage) {
+        // Update existing usage record
+        const { error: updateError } = await supabase
+          .from('user_listing_usage')
+          .update(updates)
+          .eq('user_id', userId)
+          .eq('month_year', currentMonth);
+
+        if (updateError) {
+          console.error('Error updating usage:', updateError);
+        }
+      } else {
+        // Create new usage record
+        const { error: insertError } = await supabase
+          .from('user_listing_usage')
+          .insert({
+            user_id: userId,
+            month_year: currentMonth,
+            ...updates
+          });
+
+        if (insertError) {
+          console.error('Error creating usage record:', insertError);
+        }
+      }
+
+      console.log('Usage updated:', updates);
+    } catch (error) {
+      console.error('Error updating user listing usage:', error);
     }
   },
 
@@ -414,5 +543,44 @@ export const subscriptionApi = {
 
     if (error) throw error;
     return data;
+  },
+
+  // Check if usage limits should reset (31 days)
+  async shouldResetUsage(userId: string): Promise<boolean> {
+    try {
+      const { data: usage } = await supabase
+        .from('user_listing_usage')
+        .select('created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!usage) return false;
+
+      const lastUsageDate = new Date(usage.created_at);
+      const now = new Date();
+      const daysSinceLastUsage = Math.floor((now.getTime() - lastUsageDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      return daysSinceLastUsage >= 31;
+    } catch (error) {
+      console.error('Error checking usage reset:', error);
+      return false;
+    }
+  },
+
+  // Reset usage for a user (called when 31 days have passed)
+  async resetUserUsage(userId: string): Promise<void> {
+    try {
+      // Delete old usage records
+      await supabase
+        .from('user_listing_usage')
+        .delete()
+        .eq('user_id', userId);
+
+      console.log('Usage reset for user:', userId);
+    } catch (error) {
+      console.error('Error resetting user usage:', error);
+    }
   }
 };
