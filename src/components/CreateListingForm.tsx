@@ -62,6 +62,26 @@ const CreateListingForm: React.FC = () => {
     }
   };
 
+  // Check and adjust listing type based on category (called after categories are loaded)
+  const adjustListingTypeForCategory = () => {
+    if (formData.category_id && categories.length > 0) {
+      const selectedCategory = categories.find(cat => cat.id === formData.category_id);
+      if (selectedCategory?.is_vehicle && formData.listing_type === 'free') {
+        // If vehicle category is selected but listing type is free, switch to vehicle
+        setFormData(prev => ({
+          ...prev,
+          listing_type: 'vehicle'
+        }));
+      } else if (!selectedCategory?.is_vehicle && formData.listing_type === 'vehicle') {
+        // If non-vehicle category is selected but listing type is vehicle, switch to free
+        setFormData(prev => ({
+          ...prev,
+          listing_type: 'free'
+        }));
+      }
+    }
+  };
+
   // Save form data to localStorage (excluding title, description, price)
   const saveFormData = (data: typeof formData) => {
     const dataToSave = {
@@ -90,6 +110,14 @@ const CreateListingForm: React.FC = () => {
     loadSavedData(); // Load saved form data
     loadPricingData(); // Load pricing configuration
   }, []);
+
+  // Adjust listing type when categories are loaded and form data is available
+  useEffect(() => {
+    if (categories.length > 0) {
+      adjustListingTypeForCategory();
+    }
+  }, [categories]);
+
 
   // Load pricing configuration and user subscription
   const loadPricingData = async () => {
@@ -132,14 +160,11 @@ const CreateListingForm: React.FC = () => {
     if (name === 'category_id') {
       const selectedCategory = categories.find(cat => cat.id === value);
       if (selectedCategory?.is_vehicle) {
-        // For vehicle categories, only allow vehicle or featured (not free)
-        if (formData.listing_type === 'free') {
-          newFormData = {
-            ...newFormData,
-            listing_type: 'vehicle'
-          };
-        }
-        // If already featured or vehicle, keep it
+        // For vehicle categories, always set to vehicle (not free or featured)
+        newFormData = {
+          ...newFormData,
+          listing_type: 'vehicle'
+        };
       } else if (formData.listing_type === 'vehicle') {
         // If switching away from vehicle category, reset to free
         newFormData = {
@@ -150,6 +175,13 @@ const CreateListingForm: React.FC = () => {
     }
     
     setFormData(newFormData);
+    
+    // If category changed, adjust listing type after a brief delay to ensure state is updated
+    if (name === 'category_id') {
+      setTimeout(() => {
+        adjustListingTypeForCategory();
+      }, 0);
+    }
     
     // Save form data to localStorage (excluding title, description, price)
     if (name !== 'title' && name !== 'description' && name !== 'price') {
