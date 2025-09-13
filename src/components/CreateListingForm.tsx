@@ -39,6 +39,7 @@ const CreateListingForm: React.FC = () => {
   const [limitError, setLimitError] = useState('');
   const [showPaymentOption, setShowPaymentOption] = useState(false);
   const [additionalListingCost, setAdditionalListingCost] = useState(0);
+  const [isFeatured, setIsFeatured] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -160,7 +161,7 @@ const CreateListingForm: React.FC = () => {
     if (name === 'category_id') {
       const selectedCategory = categories.find(cat => cat.id === value);
       if (selectedCategory?.is_vehicle) {
-        // For vehicle categories, always set to vehicle (not free or featured)
+        // For vehicle categories, always set to vehicle (not free)
         newFormData = {
           ...newFormData,
           listing_type: 'vehicle'
@@ -300,7 +301,7 @@ const CreateListingForm: React.FC = () => {
       // Determine the base listing type and featured status
       const selectedCategory = categories.find(cat => cat.id === formData.category_id);
       const isVehicleCategory = selectedCategory?.is_vehicle;
-      const isFeatured = formData.listing_type === 'featured';
+      // isFeatured is now determined by the checkbox state
       
       let finalListingType = formData.listing_type;
       let finalListingFee = 0;
@@ -310,11 +311,9 @@ const CreateListingForm: React.FC = () => {
         finalListingFee = additionalListingCost;
       }
       
-      // Determine the actual listing type based on category and featured status
+      // Determine the actual listing type based on category
       if (isVehicleCategory) {
         finalListingType = 'vehicle';
-      } else if (isFeatured) {
-        finalListingType = 'featured';
       } else {
         finalListingType = 'free';
       }
@@ -369,11 +368,19 @@ const CreateListingForm: React.FC = () => {
     // Check subscription limits first
     if (user && formData.listing_type) {
       try {
-        console.log('Checking limits for user:', user.id, 'listing_type:', formData.listing_type);
+        // Determine the effective listing type for limit checking
+        let effectiveType = formData.listing_type;
+        if (isFeatured && formData.listing_type === 'free') {
+          effectiveType = 'featured';
+        } else if (isFeatured && formData.listing_type === 'vehicle') {
+          effectiveType = 'vehicle'; // Vehicle + featured is still vehicle for limit checking
+        }
+        
+        console.log('Checking limits for user:', user.id, 'listing_type:', effectiveType, 'isFeatured:', isFeatured);
         console.log('User subscription:', userSubscription);
         console.log('User usage:', userUsage);
         
-        const limitCheck = await subscriptionApi.canUserCreateListing(user.id, formData.listing_type);
+        const limitCheck = await subscriptionApi.canUserCreateListing(user.id, effectiveType);
         console.log('Can create listing:', limitCheck);
         
         if (!limitCheck.canCreate) {
@@ -693,7 +700,7 @@ const CreateListingForm: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 Listing Type
               </label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Free Listing */}
                 <div
                   className={`relative border-2 rounded-lg p-4 transition-all ${
@@ -728,31 +735,6 @@ const CreateListingForm: React.FC = () => {
                   <div className="mt-2 text-lg font-bold text-green-600">$0</div>
                 </div>
 
-                {/* Featured Listing */}
-                <div
-                  className={`relative border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                    formData.listing_type === 'featured'
-                      ? 'border-primary-500 bg-primary-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => handleListingTypeChange('featured')}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-900 flex items-center">
-                        <StarIcon className="h-4 w-4 text-yellow-500 mr-1" />
-                        Featured Listing
-                      </h3>
-                      <p className="text-xs text-gray-600 mt-1">Enhanced visibility & priority</p>
-                    </div>
-                    <div className="flex items-center">
-                      {formData.listing_type === 'featured' && (
-                        <CheckCircleIcon className="h-5 w-5 text-primary-600" />
-                      )}
-                    </div>
-                  </div>
-                  <div className="mt-2 text-lg font-bold text-green-600">$0</div>
-                </div>
 
                 {/* Vehicle Listing */}
                 <div
@@ -787,19 +769,9 @@ const CreateListingForm: React.FC = () => {
                   <input
                     id="is_featured_modifier"
                     type="checkbox"
-                    checked={formData.listing_type === 'featured'}
+                    checked={isFeatured}
                     onChange={(e) => {
-                      if (e.target.checked) {
-                        handleListingTypeChange('featured');
-                      } else {
-                        // If unchecking featured, go back to the base type
-                        const selectedCategory = categories.find(cat => cat.id === formData.category_id);
-                        if (selectedCategory?.is_vehicle) {
-                          handleListingTypeChange('vehicle');
-                        } else {
-                          handleListingTypeChange('free');
-                        }
-                      }
+                      setIsFeatured(e.target.checked);
                     }}
                     className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                   />
