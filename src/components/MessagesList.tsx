@@ -5,13 +5,19 @@ import {
   EyeIcon, 
   EyeSlashIcon,
   CheckIcon,
-  XMarkIcon
+  XMarkIcon,
+  PaperAirplaneIcon,
+  ArrowUturnLeftIcon
 } from '@heroicons/react/24/outline';
-import { getUserMessages, markMessageAsRead, Message } from '../services/supabaseApi';
+import { getUserMessages, markMessageAsRead, sendMessage, Message } from '../services/supabaseApi';
 
 export function MessagesList() {
   const queryClient = useQueryClient();
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [showReplyForm, setShowReplyForm] = useState(false);
+  const [replyMessage, setReplyMessage] = useState('');
+  const [isReplying, setIsReplying] = useState(false);
+  const [replyError, setReplyError] = useState('');
 
   // Fetch user's messages
   const { data: messages, isLoading, error } = useQuery(
@@ -31,6 +37,60 @@ export function MessagesList() {
 
   const handleMarkAsRead = (messageId: string) => {
     markAsReadMutation.mutate(messageId);
+  };
+
+  // Send reply mutation
+  const sendReplyMutation = useMutation(sendMessage, {
+    onSuccess: () => {
+      queryClient.invalidateQueries('user-messages');
+      setReplyMessage('');
+      setShowReplyForm(false);
+      setReplyError('');
+    },
+    onError: (error: any) => {
+      setReplyError(error.message || 'Failed to send reply');
+    },
+  });
+
+  const handleReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!replyMessage.trim()) {
+      setReplyError('Please enter a reply message');
+      return;
+    }
+
+    if (!selectedMessage) {
+      setReplyError('No message selected');
+      return;
+    }
+
+    setIsReplying(true);
+    setReplyError('');
+
+    try {
+      await sendReplyMutation.mutateAsync({
+        listingId: selectedMessage.listing_id,
+        content: replyMessage.trim(),
+        receiverId: selectedMessage.sender_id
+      });
+    } catch (error) {
+      // Error is handled by the mutation
+    } finally {
+      setIsReplying(false);
+    }
+  };
+
+  const handleOpenReply = () => {
+    setShowReplyForm(true);
+    setReplyMessage('');
+    setReplyError('');
+  };
+
+  const handleCloseReply = () => {
+    setShowReplyForm(false);
+    setReplyMessage('');
+    setReplyError('');
   };
 
   const formatDate = (dateString: string) => {
@@ -123,6 +183,17 @@ export function MessagesList() {
                     {formatDate(message.created_at)}
                   </p>
                   <div className="flex items-center space-x-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedMessage(message);
+                        handleOpenReply();
+                      }}
+                      className="text-xs text-green-600 hover:text-green-800 flex items-center"
+                    >
+                      <ArrowUturnLeftIcon className="h-3 w-3 mr-1" />
+                      Quick Reply
+                    </button>
                     {!message.is_read && (
                       <button
                         onClick={(e) => {
@@ -199,12 +270,105 @@ export function MessagesList() {
                       Mark as Read
                     </button>
                   )}
+                  <button
+                    onClick={handleOpenReply}
+                    className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                  >
+                    <ArrowUturnLeftIcon className="h-4 w-4 mr-1" />
+                    Reply
+                  </button>
                 </div>
                 <div className="text-sm text-gray-500">
                   Status: {selectedMessage.is_read ? 'Read' : 'Unread'}
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reply Form Modal */}
+      {showReplyForm && selectedMessage && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Reply to Message</h3>
+              <button
+                onClick={handleCloseReply}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Replying to:</span> {getSenderName(selectedMessage)}
+              </p>
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">About:</span> {selectedMessage.listing?.title}
+              </p>
+            </div>
+
+            <form onSubmit={handleReply} className="space-y-4">
+              <div>
+                <label htmlFor="replyMessage" className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Reply
+                </label>
+                <textarea
+                  id="replyMessage"
+                  value={replyMessage}
+                  onChange={(e) => setReplyMessage(e.target.value)}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Type your reply here..."
+                  maxLength={500}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {replyMessage.length}/500 characters
+                </p>
+              </div>
+
+              {replyError && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                  <p className="text-red-600 text-sm">{replyError}</p>
+                </div>
+              )}
+
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                <p className="text-blue-800 text-sm">
+                  <strong>Note:</strong> Your reply will be sent to the buyer through our secure messaging system. 
+                  They will receive an email notification.
+                </p>
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={handleCloseReply}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isReplying || !replyMessage.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                >
+                  {isReplying ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <PaperAirplaneIcon className="h-4 w-4 mr-2" />
+                      Send Reply
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
