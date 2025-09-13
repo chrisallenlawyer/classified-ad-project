@@ -481,25 +481,68 @@ export const subscriptionApi = {
     }
   },
 
-  // Get user's current usage for the month
+  // Get user's current usage for the month (based on actual listing creation dates)
   async getUserUsage(userId: string): Promise<any> {
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
     
-    const { data, error } = await supabase
-      .from('user_listing_usage')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('month_year', currentMonth)
-      .single();
+    try {
+      // Get actual usage from listings created in the last 31 days
+      const thirtyOneDaysAgo = new Date();
+      thirtyOneDaysAgo.setDate(thirtyOneDaysAgo.getDate() - 31);
+      
+      const { data: listings, error: listingsError } = await supabase
+        .from('listings')
+        .select('id, listing_type, is_featured, is_promoted, created_at, listing_fee')
+        .eq('user_id', userId)
+        .gte('created_at', thirtyOneDaysAgo.toISOString())
+        .order('created_at', { ascending: false });
 
-    if (error && error.code !== 'PGRST116') {
-      // If no usage record exists, create one
-      if (error.code === 'PGRST116') {
-        return await this.createDefaultUsage(userId, currentMonth);
+      if (listingsError) {
+        console.error('Error fetching listings for usage:', listingsError);
+        return null;
       }
-      throw error;
+
+      // Calculate usage based on actual listings
+      let freeListingsUsed = 0;
+      let featuredListingsUsed = 0;
+      let vehicleListingsUsed = 0;
+
+      listings?.forEach(listing => {
+        // Check if this was a free listing (no fee charged)
+        const wasFree = !listing.listing_fee || listing.listing_fee === 0;
+        
+        if (wasFree) {
+          // Free listing - counts against free pool
+          freeListingsUsed++;
+          
+          if (listing.is_featured) {
+            featuredListingsUsed++;
+          }
+          if (listing.listing_type === 'vehicle') {
+            vehicleListingsUsed++;
+          }
+        } else {
+          // Paid listing - doesn't count against free pool, but counts for type
+          if (listing.is_featured) {
+            featuredListingsUsed++;
+          }
+          if (listing.listing_type === 'vehicle') {
+            vehicleListingsUsed++;
+          }
+        }
+      });
+
+      return {
+        free_listings_used: freeListingsUsed,
+        featured_listings_used: featuredListingsUsed,
+        vehicle_listings_used: vehicleListingsUsed,
+        total_listings_created: listings?.length || 0
+      };
+
+    } catch (error) {
+      console.error('Error calculating usage from listings:', error);
+      return null;
     }
-    return data;
   },
 
   // Create default usage record for a user

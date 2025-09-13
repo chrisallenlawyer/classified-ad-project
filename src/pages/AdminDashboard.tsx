@@ -675,6 +675,12 @@ export function AdminDashboard() {
               <h3 className="font-medium text-gray-900 mb-2">Subscription Plans</h3>
               <p className="text-sm text-gray-600 mb-3">Create and manage different subscription tiers for users.</p>
               <div className="text-xs text-gray-500">Free, Basic, Pro, Business plans</div>
+              <button
+                onClick={() => setShowSubscriptionLimitsManager(true)}
+                className="mt-2 inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-white bg-primary-600 hover:bg-primary-700"
+              >
+                Manage Subscription Limits
+              </button>
             </div>
             <div className="bg-white rounded-lg p-4 border border-gray-200">
               <h3 className="font-medium text-gray-900 mb-2">Pricing Configuration</h3>
@@ -696,26 +702,6 @@ export function AdminDashboard() {
         </div>
       </CollapsibleSection>
 
-      {/* Subscription Limits Management Section */}
-      <CollapsibleSection
-        title="Subscription Limits Management"
-        icon={<CurrencyDollarIcon className="h-6 w-6 text-primary-600" />}
-        isExpanded={expandedSections.pricing}
-        onToggle={() => toggleSection('pricing')}
-      >
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <p className="text-gray-600">Manage subscription plans and their limits for listings.</p>
-          </div>
-          <button
-            onClick={() => setShowSubscriptionLimitsManager(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-          >
-            <CurrencyDollarIcon className="h-4 w-4 mr-2" />
-            Manage Subscription Limits
-          </button>
-        </div>
-      </CollapsibleSection>
 
       {/* User Management Section */}
       <CollapsibleSection

@@ -109,6 +109,18 @@ const CreateListingForm: React.FC = () => {
     }
   };
 
+  // Refresh usage data
+  const refreshUsageData = async () => {
+    if (!user) return;
+    
+    try {
+      const usage = await subscriptionApi.getUserUsage(user.id);
+      setUserUsage(usage);
+    } catch (error) {
+      console.error('Error refreshing usage data:', error);
+    }
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     let newFormData = {
@@ -268,8 +280,8 @@ const CreateListingForm: React.FC = () => {
       const newListing = await createListingWithImages(listingData, user);
       console.log('Listing created successfully:', newListing);
       
-      // Update usage tracking
-      await subscriptionApi.updateUserListingUsage(user.id, finalListingType, isPaidAdditional);
+      // Refresh usage data to reflect the new listing
+      await refreshUsageData();
       
       console.log('Navigating to listing detail page:', `/listing/${newListing.id}`);
       console.log('New listing ID:', newListing.id);
