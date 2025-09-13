@@ -12,7 +12,7 @@ import {
   PaperAirplaneIcon as SentIcon,
   TrashIcon,
   ArrowPathIcon,
-  ExternalLinkIcon
+  ArrowTopRightOnSquareIcon
 } from '@heroicons/react/24/outline';
 import { getUserMessages, getSentMessages, getDeletedMessages, markMessageAsRead, sendMessage, deleteMessage, restoreMessage, permanentDeleteMessage, Message } from '../services/supabaseApi';
 
@@ -468,7 +468,7 @@ export function MessagesList() {
                     onClick={() => openListing(selectedMessage.listing_id)}
                     className="inline-flex items-center px-3 py-1 border border-blue-300 rounded-md text-sm font-medium text-blue-700 bg-white hover:bg-blue-50"
                   >
-                    <ExternalLinkIcon className="h-4 w-4 mr-1" />
+                    <ArrowTopRightOnSquareIcon className="h-4 w-4 mr-1" />
                     View Listing
                   </button>
                 </div>
