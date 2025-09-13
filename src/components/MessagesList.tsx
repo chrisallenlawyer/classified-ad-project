@@ -14,7 +14,7 @@ import {
   ArrowPathIcon,
   ExternalLinkIcon
 } from '@heroicons/react/24/outline';
-import { getUserMessages, getSentMessages, markMessageAsRead, sendMessage, Message } from '../services/supabaseApi';
+import { getUserMessages, getSentMessages, getDeletedMessages, markMessageAsRead, sendMessage, deleteMessage, restoreMessage, permanentDeleteMessage, Message } from '../services/supabaseApi';
 
 type MessageTab = 'incoming' | 'sent' | 'deleted';
 
@@ -45,13 +45,10 @@ export function MessagesList() {
     }
   );
 
-  // Fetch deleted messages (placeholder - you'll need to implement this in supabaseApi.ts)
+  // Fetch deleted messages
   const { data: deletedMessages, isLoading: deletedLoading, error: deletedError } = useQuery(
     'deleted-messages',
-    async () => {
-      // This will need to be implemented in supabaseApi.ts
-      return [];
-    },
+    getDeletedMessages,
     {
       refetchInterval: 30000,
     }
@@ -96,48 +93,30 @@ export function MessagesList() {
     },
   });
 
-  // Delete message mutation (placeholder - you'll need to implement this in supabaseApi.ts)
-  const deleteMessageMutation = useMutation(
-    async (messageId: string) => {
-      // This will need to be implemented in supabaseApi.ts
-      console.log('Deleting message:', messageId);
+  // Delete message mutation
+  const deleteMessageMutation = useMutation(deleteMessage, {
+    onSuccess: () => {
+      queryClient.invalidateQueries('incoming-messages');
+      queryClient.invalidateQueries('sent-messages');
+      queryClient.invalidateQueries('deleted-messages');
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('incoming-messages');
-        queryClient.invalidateQueries('sent-messages');
-        queryClient.invalidateQueries('deleted-messages');
-      },
-    }
-  );
+  });
 
-  // Restore message mutation (placeholder - you'll need to implement this in supabaseApi.ts)
-  const restoreMessageMutation = useMutation(
-    async (messageId: string) => {
-      // This will need to be implemented in supabaseApi.ts
-      console.log('Restoring message:', messageId);
+  // Restore message mutation
+  const restoreMessageMutation = useMutation(restoreMessage, {
+    onSuccess: () => {
+      queryClient.invalidateQueries('incoming-messages');
+      queryClient.invalidateQueries('sent-messages');
+      queryClient.invalidateQueries('deleted-messages');
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('incoming-messages');
-        queryClient.invalidateQueries('sent-messages');
-        queryClient.invalidateQueries('deleted-messages');
-      },
-    }
-  );
+  });
 
-  // Permanently delete message mutation (placeholder - you'll need to implement this in supabaseApi.ts)
-  const permanentDeleteMutation = useMutation(
-    async (messageId: string) => {
-      // This will need to be implemented in supabaseApi.ts
-      console.log('Permanently deleting message:', messageId);
+  // Permanently delete message mutation
+  const permanentDeleteMutation = useMutation(permanentDeleteMessage, {
+    onSuccess: () => {
+      queryClient.invalidateQueries('deleted-messages');
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('deleted-messages');
-      },
-    }
-  );
+  });
 
   const handleReply = async (e: React.FormEvent) => {
     e.preventDefault();

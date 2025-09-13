@@ -770,6 +770,7 @@ export const getUserMessages = async (): Promise<Message[]> => {
     .from('messages')
     .select('*')
     .eq('receiver_id', user.id)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -785,12 +786,20 @@ export const getUserMessages = async (): Promise<Message[]> => {
   const listingIds = [...new Set(data.map(msg => msg.listing_id))]
   const { data: listings } = await supabase
     .from('listings')
-    .select('id, title, price')
+    .select('id, title, price, category_id')
     .in('id', listingIds)
+
+  // Get category info for listings
+  const categoryIds = [...new Set(listings?.map(l => l.category_id).filter(Boolean) || [])]
+  const { data: categories } = await supabase
+    .from('categories')
+    .select('id, name')
+    .in('id', categoryIds)
 
   // Combine the data
   return data.map(message => {
     const listing = listings?.find(l => l.id === message.listing_id)
+    const category = categories?.find(c => c.id === listing?.category_id)
     
     return {
       ...message,
@@ -807,7 +816,8 @@ export const getUserMessages = async (): Promise<Message[]> => {
       listing: listing ? {
         id: listing.id,
         title: listing.title,
-        price: listing.price
+        price: listing.price,
+        category: category ? { name: category.name } : undefined
       } : undefined
     }
   })
@@ -824,6 +834,7 @@ export const getSentMessages = async (): Promise<Message[]> => {
     .from('messages')
     .select('*')
     .eq('sender_id', user.id)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -839,12 +850,20 @@ export const getSentMessages = async (): Promise<Message[]> => {
   const listingIds = [...new Set(data.map(msg => msg.listing_id))]
   const { data: listings } = await supabase
     .from('listings')
-    .select('id, title, price')
+    .select('id, title, price, category_id')
     .in('id', listingIds)
+
+  // Get category info for listings
+  const categoryIds = [...new Set(listings?.map(l => l.category_id).filter(Boolean) || [])]
+  const { data: categories } = await supabase
+    .from('categories')
+    .select('id, name')
+    .in('id', categoryIds)
 
   // Combine the data
   return data.map(message => {
     const listing = listings?.find(l => l.id === message.listing_id)
+    const category = categories?.find(c => c.id === listing?.category_id)
     
     return {
       ...message,
@@ -861,7 +880,8 @@ export const getSentMessages = async (): Promise<Message[]> => {
       listing: listing ? {
         id: listing.id,
         title: listing.title,
-        price: listing.price
+        price: listing.price,
+        category: category ? { name: category.name } : undefined
       } : undefined
     }
   })
@@ -891,6 +911,7 @@ export const getUnreadMessageCount = async (): Promise<number> => {
     .select('*', { count: 'exact', head: true })
     .eq('receiver_id', user.id)
     .eq('is_read', false)
+    .is('deleted_at', null)
 
   if (error) {
     console.error('Error fetching unread message count:', error)
@@ -898,6 +919,176 @@ export const getUnreadMessageCount = async (): Promise<number> => {
   }
 
   return count || 0
+}
+
+// Deleted Messages API
+export const getDeletedMessages = async (): Promise<Message[]> => {
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    throw new Error('User must be authenticated to view deleted messages')
+  }
+
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*')
+    .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+    .not('deleted_at', 'is', null)
+    .order('deleted_at', { ascending: false })
+
+  if (error) {
+    console.error('Error fetching deleted messages:', error)
+    throw error
+  }
+
+  if (!data || data.length === 0) {
+    return []
+  }
+
+  // Get listing info for each message
+  const listingIds = [...new Set(data.map(msg => msg.listing_id))]
+  const { data: listings } = await supabase
+    .from('listings')
+    .select('id, title, price, category_id')
+    .in('id', listingIds)
+
+  // Get category info for listings
+  const categoryIds = [...new Set(listings?.map(l => l.category_id).filter(Boolean) || [])]
+  const { data: categories } = await supabase
+    .from('categories')
+    .select('id, name')
+    .in('id', categoryIds)
+
+  // Combine the data
+  return data.map(message => {
+    const listing = listings?.find(l => l.id === message.listing_id)
+    const category = categories?.find(c => c.id === listing?.category_id)
+    
+    return {
+      ...message,
+      sender: {
+        id: message.sender_id,
+        email: 'sender@example.com',
+        user_metadata: {}
+      },
+      receiver: {
+        id: message.receiver_id,
+        email: 'receiver@example.com',
+        user_metadata: {}
+      },
+      listing: listing ? {
+        id: listing.id,
+        title: listing.title,
+        price: listing.price,
+        category: category ? { name: category.name } : undefined
+      } : undefined
+    }
+  })
+}
+
+export const deleteMessage = async (messageId: string): Promise<void> => {
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    throw new Error('User must be authenticated to delete messages')
+  }
+
+  // First verify the user owns this message
+  const { data: message, error: fetchError } = await supabase
+    .from('messages')
+    .select('sender_id, receiver_id')
+    .eq('id', messageId)
+    .single()
+
+  if (fetchError) {
+    console.error('Error fetching message for deletion:', fetchError)
+    throw new Error('Message not found')
+  }
+
+  if (message.sender_id !== user.id && message.receiver_id !== user.id) {
+    throw new Error('You can only delete your own messages')
+  }
+
+  // Soft delete by setting deleted_at timestamp
+  const { error } = await supabase
+    .from('messages')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', messageId)
+
+  if (error) {
+    console.error('Error deleting message:', error)
+    throw error
+  }
+}
+
+export const restoreMessage = async (messageId: string): Promise<void> => {
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    throw new Error('User must be authenticated to restore messages')
+  }
+
+  // First verify the user owns this message
+  const { data: message, error: fetchError } = await supabase
+    .from('messages')
+    .select('sender_id, receiver_id')
+    .eq('id', messageId)
+    .single()
+
+  if (fetchError) {
+    console.error('Error fetching message for restoration:', fetchError)
+    throw new Error('Message not found')
+  }
+
+  if (message.sender_id !== user.id && message.receiver_id !== user.id) {
+    throw new Error('You can only restore your own messages')
+  }
+
+  // Restore by setting deleted_at to null
+  const { error } = await supabase
+    .from('messages')
+    .update({ deleted_at: null })
+    .eq('id', messageId)
+
+  if (error) {
+    console.error('Error restoring message:', error)
+    throw error
+  }
+}
+
+export const permanentDeleteMessage = async (messageId: string): Promise<void> => {
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    throw new Error('User must be authenticated to permanently delete messages')
+  }
+
+  // First verify the user owns this message
+  const { data: message, error: fetchError } = await supabase
+    .from('messages')
+    .select('sender_id, receiver_id')
+    .eq('id', messageId)
+    .single()
+
+  if (fetchError) {
+    console.error('Error fetching message for permanent deletion:', fetchError)
+    throw new Error('Message not found')
+  }
+
+  if (message.sender_id !== user.id && message.receiver_id !== user.id) {
+    throw new Error('You can only permanently delete your own messages')
+  }
+
+  // Permanently delete the message
+  const { error } = await supabase
+    .from('messages')
+    .delete()
+    .eq('id', messageId)
+
+  if (error) {
+    console.error('Error permanently deleting message:', error)
+    throw error
+  }
 }
 
 // Create listing with images (now just calls createListing)
