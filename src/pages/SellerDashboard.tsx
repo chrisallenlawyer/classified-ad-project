@@ -70,7 +70,23 @@ export function SellerDashboard() {
 
   // Update listing status mutation
   const updateListingMutation = useMutation(
-    ({ id, status }: { id: string; status: string }) => updateListing(id, { status }),
+    ({ id, status }: { id: string; status: string }) => {
+      const updates: any = {};
+      switch (status) {
+        case 'active':
+          updates.is_active = true;
+          updates.is_sold = false;
+          break;
+        case 'sold':
+          updates.is_sold = true;
+          updates.is_active = true;
+          break;
+        case 'removed':
+          updates.is_active = false;
+          break;
+      }
+      return updateListing(id, updates);
+    },
     {
       onSuccess: () => {
         queryClient.invalidateQueries('user-listings');
@@ -99,14 +115,18 @@ export function SellerDashboard() {
     });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'sold': return 'bg-blue-100 text-blue-800';
-      case 'expired': return 'bg-yellow-100 text-yellow-800';
-      case 'removed': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  const getStatusColor = (listing: any) => {
+    if (listing.is_sold) return 'bg-blue-100 text-blue-800';
+    if (!listing.is_active) return 'bg-red-100 text-red-800';
+    if (new Date(listing.expires_at) < new Date()) return 'bg-yellow-100 text-yellow-800';
+    return 'bg-green-100 text-green-800';
+  };
+
+  const getStatusText = (listing: any) => {
+    if (listing.is_sold) return 'Sold';
+    if (!listing.is_active) return 'Inactive';
+    if (new Date(listing.expires_at) < new Date()) return 'Expired';
+    return 'Active';
   };
 
   if (!user) {
@@ -299,7 +319,7 @@ export function SellerDashboard() {
                     <div className="ml-4">
                       <p className="text-sm font-medium text-gray-600">Active Listings</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        {listings.filter(listing => listing.status === 'active').length}
+                        {listings.filter(listing => listing.is_active === true && listing.is_sold === false).length}
                       </p>
                     </div>
                   </div>
@@ -351,8 +371,8 @@ export function SellerDashboard() {
                     <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
                       {listing.title}
                     </h3>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(listing.status)}`}>
-                      {listing.status}
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(listing)}`}>
+                      {getStatusText(listing)}
                     </span>
                   </div>
 
@@ -404,10 +424,10 @@ export function SellerDashboard() {
                   </div>
 
                   {/* Status Actions */}
-                  {listing.status === 'active' && (
+                  {getStatusText(listing) === 'Active' && (
                     <div className="mt-3 pt-3 border-t border-gray-200">
                       <select
-                        value={listing.status}
+                        value={getStatusText(listing).toLowerCase()}
                         onChange={(e) => handleStatusChange(listing.id, e.target.value)}
                         className="w-full text-sm border border-gray-300 rounded-md px-3 py-2"
                       >
