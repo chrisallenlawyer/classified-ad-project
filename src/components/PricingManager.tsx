@@ -45,9 +45,17 @@ export function PricingManager({ onClose }: PricingManagerProps) {
 
   const updateConfigMutation = useMutation(
     async ({ id, updates }: { id: string; updates: Partial<PricingConfig> }) => {
+      // Convert config_value to JSONB format if it's a number
+      const processedUpdates = {
+        ...updates,
+        config_value: typeof updates.config_value === 'number' 
+          ? updates.config_value 
+          : updates.config_value
+      };
+      
       const { data, error } = await supabase
         .from('pricing_config')
-        .update(updates)
+        .update(processedUpdates)
         .eq('id', id)
         .select()
         .single();
@@ -65,8 +73,13 @@ export function PricingManager({ onClose }: PricingManagerProps) {
 
   const handleEdit = (config: PricingConfig) => {
     setEditingConfig(config);
+    // Handle JSONB values properly
+    let configValue = config.config_value;
+    if (typeof configValue === 'object' && configValue !== null) {
+      configValue = JSON.parse(configValue);
+    }
     setFormData({
-      config_value: typeof config.config_value === 'number' ? config.config_value : 0,
+      config_value: typeof configValue === 'number' ? configValue : parseFloat(configValue || 0),
       description: config.description
     });
   };
@@ -77,7 +90,7 @@ export function PricingManager({ onClose }: PricingManagerProps) {
     updateConfigMutation.mutate({
       id: editingConfig.id,
       updates: {
-        config_value: formData.config_value,
+        config_value: formData.config_value, // This will be converted to JSONB by the API
         description: formData.description
       }
     });
@@ -177,7 +190,11 @@ export function PricingManager({ onClose }: PricingManagerProps) {
                     ) : (
                       <div className="flex items-center justify-between">
                         <div className="text-2xl font-bold text-primary-600">
-                          ${typeof config.config_value === 'number' ? config.config_value.toFixed(2) : config.config_value}
+                          ${typeof config.config_value === 'number' 
+                            ? config.config_value.toFixed(2) 
+                            : typeof config.config_value === 'object' 
+                              ? JSON.parse(config.config_value).toFixed(2)
+                              : parseFloat(config.config_value || 0).toFixed(2)}
                         </div>
                         <button
                           onClick={() => handleEdit(config)}
