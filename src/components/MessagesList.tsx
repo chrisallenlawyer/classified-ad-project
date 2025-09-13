@@ -10,13 +10,13 @@ import {
   ArrowUturnLeftIcon,
   InboxIcon,
   PaperAirplaneIcon as SentIcon,
-  ShoppingBagIcon,
-  UserGroupIcon
+  TrashIcon,
+  ArrowPathIcon,
+  ExternalLinkIcon
 } from '@heroicons/react/24/outline';
 import { getUserMessages, getSentMessages, markMessageAsRead, sendMessage, Message } from '../services/supabaseApi';
 
-type MessageTab = 'incoming' | 'sent';
-type MessageCategory = 'all' | 'buyers' | 'sellers';
+type MessageTab = 'incoming' | 'sent' | 'deleted';
 
 export function MessagesList() {
   const queryClient = useQueryClient();
@@ -26,7 +26,6 @@ export function MessagesList() {
   const [isReplying, setIsReplying] = useState(false);
   const [replyError, setReplyError] = useState('');
   const [activeTab, setActiveTab] = useState<MessageTab>('incoming');
-  const [activeCategory, setActiveCategory] = useState<MessageCategory>('all');
 
   // Fetch incoming messages
   const { data: incomingMessages, isLoading: incomingLoading, error: incomingError } = useQuery(
@@ -46,47 +45,35 @@ export function MessagesList() {
     }
   );
 
-  // Determine which messages to show based on active tab
-  const messages = activeTab === 'incoming' ? incomingMessages : sentMessages;
-  const isLoading = activeTab === 'incoming' ? incomingLoading : sentLoading;
-  const error = activeTab === 'incoming' ? incomingError : sentError;
+  // Fetch deleted messages (placeholder - you'll need to implement this in supabaseApi.ts)
+  const { data: deletedMessages, isLoading: deletedLoading, error: deletedError } = useQuery(
+    'deleted-messages',
+    async () => {
+      // This will need to be implemented in supabaseApi.ts
+      return [];
+    },
+    {
+      refetchInterval: 30000,
+    }
+  );
 
-  // Filter messages based on category
-  const filteredMessages = messages?.filter(message => {
-    if (activeCategory === 'all') return true;
-    
-    // For incoming messages: check if sender is a buyer (not the listing owner)
-    if (activeTab === 'incoming') {
-      if (activeCategory === 'buyers') {
-        // This is a message from a buyer to a seller
-        return true; // All incoming messages are from buyers
-      }
-      if (activeCategory === 'sellers') {
-        // This would be a message from a seller, but incoming messages are always from buyers
-        return false;
-      }
-    }
-    
-    // For sent messages: check if receiver is a seller (listing owner)
-    if (activeTab === 'sent') {
-      if (activeCategory === 'sellers') {
-        // This is a message from a buyer to a seller
-        return true; // All sent messages are to sellers
-      }
-      if (activeCategory === 'buyers') {
-        // This would be a message to a buyer, but sent messages are always to sellers
-        return false;
-      }
-    }
-    
-    return true;
-  }) || [];
+  // Determine which messages to show based on active tab
+  const messages = activeTab === 'incoming' ? incomingMessages : 
+                  activeTab === 'sent' ? sentMessages : 
+                  deletedMessages;
+  const isLoading = activeTab === 'incoming' ? incomingLoading : 
+                   activeTab === 'sent' ? sentLoading : 
+                   deletedLoading;
+  const error = activeTab === 'incoming' ? incomingError : 
+               activeTab === 'sent' ? sentError : 
+               deletedError;
 
   // Mark message as read mutation
   const markAsReadMutation = useMutation(markMessageAsRead, {
     onSuccess: () => {
       queryClient.invalidateQueries('incoming-messages');
       queryClient.invalidateQueries('sent-messages');
+      queryClient.invalidateQueries('deleted-messages');
     },
   });
 
@@ -99,6 +86,7 @@ export function MessagesList() {
     onSuccess: () => {
       queryClient.invalidateQueries('incoming-messages');
       queryClient.invalidateQueries('sent-messages');
+      queryClient.invalidateQueries('deleted-messages');
       setReplyMessage('');
       setShowReplyForm(false);
       setReplyError('');
@@ -107,6 +95,49 @@ export function MessagesList() {
       setReplyError(error.message || 'Failed to send reply');
     },
   });
+
+  // Delete message mutation (placeholder - you'll need to implement this in supabaseApi.ts)
+  const deleteMessageMutation = useMutation(
+    async (messageId: string) => {
+      // This will need to be implemented in supabaseApi.ts
+      console.log('Deleting message:', messageId);
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('incoming-messages');
+        queryClient.invalidateQueries('sent-messages');
+        queryClient.invalidateQueries('deleted-messages');
+      },
+    }
+  );
+
+  // Restore message mutation (placeholder - you'll need to implement this in supabaseApi.ts)
+  const restoreMessageMutation = useMutation(
+    async (messageId: string) => {
+      // This will need to be implemented in supabaseApi.ts
+      console.log('Restoring message:', messageId);
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('incoming-messages');
+        queryClient.invalidateQueries('sent-messages');
+        queryClient.invalidateQueries('deleted-messages');
+      },
+    }
+  );
+
+  // Permanently delete message mutation (placeholder - you'll need to implement this in supabaseApi.ts)
+  const permanentDeleteMutation = useMutation(
+    async (messageId: string) => {
+      // This will need to be implemented in supabaseApi.ts
+      console.log('Permanently deleting message:', messageId);
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('deleted-messages');
+      },
+    }
+  );
 
   const handleReply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,6 +180,24 @@ export function MessagesList() {
     setReplyError('');
   };
 
+  const handleDeleteMessage = (messageId: string) => {
+    if (window.confirm('Are you sure you want to delete this message? It will be moved to Deleted Messages.')) {
+      deleteMessageMutation.mutate(messageId);
+    }
+  };
+
+  const handleRestoreMessage = (messageId: string) => {
+    if (window.confirm('Are you sure you want to restore this message?')) {
+      restoreMessageMutation.mutate(messageId);
+    }
+  };
+
+  const handlePermanentDelete = (messageId: string) => {
+    if (window.confirm('Are you sure you want to permanently delete this message? This action cannot be undone.')) {
+      permanentDeleteMutation.mutate(messageId);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -164,6 +213,10 @@ export function MessagesList() {
       return `${message.sender.user_metadata.first_name} ${message.sender.user_metadata.last_name || ''}`.trim();
     }
     return message.sender?.email || 'Unknown User';
+  };
+
+  const openListing = (listingId: string) => {
+    window.open(`/listing/${listingId}`, '_blank');
   };
 
   if (isLoading) {
@@ -192,7 +245,7 @@ export function MessagesList() {
     );
   }
 
-  if (!filteredMessages || filteredMessages.length === 0) {
+  if (!messages || messages.length === 0) {
     return (
       <div className="space-y-6">
         {/* Tab Navigation */}
@@ -220,55 +273,34 @@ export function MessagesList() {
               <SentIcon className="h-5 w-5 inline mr-2" />
               Sent Messages
             </button>
+            <button
+              onClick={() => setActiveTab('deleted')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'deleted'
+                  ? 'border-red-500 text-red-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <TrashIcon className="h-5 w-5 inline mr-2" />
+              Deleted Messages
+            </button>
           </nav>
-        </div>
-
-        {/* Category Filter */}
-        <div className="flex space-x-4">
-          <button
-            onClick={() => setActiveCategory('all')}
-            className={`px-3 py-1 rounded-full text-sm font-medium ${
-              activeCategory === 'all'
-                ? 'bg-blue-100 text-blue-800'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            All Messages
-          </button>
-          <button
-            onClick={() => setActiveCategory('buyers')}
-            className={`px-3 py-1 rounded-full text-sm font-medium ${
-              activeCategory === 'buyers'
-                ? 'bg-green-100 text-green-800'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            <ShoppingBagIcon className="h-4 w-4 inline mr-1" />
-            From Buyers
-          </button>
-          <button
-            onClick={() => setActiveCategory('sellers')}
-            className={`px-3 py-1 rounded-full text-sm font-medium ${
-              activeCategory === 'sellers'
-                ? 'bg-purple-100 text-purple-800'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            <UserGroupIcon className="h-4 w-4 inline mr-1" />
-            To Sellers
-          </button>
         </div>
 
         {/* Empty State */}
         <div className="text-center py-8">
           <EnvelopeIcon className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900">
-            {activeTab === 'incoming' ? 'No incoming messages' : 'No sent messages'}
+            {activeTab === 'incoming' ? 'No incoming messages' : 
+             activeTab === 'sent' ? 'No sent messages' : 
+             'No deleted messages'}
           </h3>
           <p className="mt-1 text-sm text-gray-500">
             {activeTab === 'incoming' 
               ? 'You\'ll see messages from potential buyers here.' 
-              : 'Messages you send to sellers will appear here.'
+              : activeTab === 'sent'
+              ? 'Messages you send to sellers will appear here.'
+              : 'Deleted messages will appear here.'
             }
           </p>
         </div>
@@ -313,53 +345,33 @@ export function MessagesList() {
               </span>
             )}
           </button>
+          <button
+            onClick={() => setActiveTab('deleted')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'deleted'
+                ? 'border-red-500 text-red-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <TrashIcon className="h-5 w-5 inline mr-2" />
+            Deleted Messages
+            {deletedMessages && deletedMessages.length > 0 && (
+              <span className="ml-2 bg-red-100 text-red-800 text-xs font-medium px-2 py-0.5 rounded-full">
+                {deletedMessages.length}
+              </span>
+            )}
+          </button>
         </nav>
-      </div>
-
-      {/* Category Filter */}
-      <div className="flex space-x-4">
-        <button
-          onClick={() => setActiveCategory('all')}
-          className={`px-3 py-1 rounded-full text-sm font-medium ${
-            activeCategory === 'all'
-              ? 'bg-blue-100 text-blue-800'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          All Messages
-        </button>
-        <button
-          onClick={() => setActiveCategory('buyers')}
-          className={`px-3 py-1 rounded-full text-sm font-medium ${
-            activeCategory === 'buyers'
-              ? 'bg-green-100 text-green-800'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          <ShoppingBagIcon className="h-4 w-4 inline mr-1" />
-          From Buyers
-        </button>
-        <button
-          onClick={() => setActiveCategory('sellers')}
-          className={`px-3 py-1 rounded-full text-sm font-medium ${
-            activeCategory === 'sellers'
-              ? 'bg-purple-100 text-purple-800'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          <UserGroupIcon className="h-4 w-4 inline mr-1" />
-          To Sellers
-        </button>
       </div>
 
       {/* Messages List */}
       <div className="space-y-4">
-      {filteredMessages.map((message) => (
+      {messages.map((message) => (
         <div
           key={message.id}
           className={`bg-white rounded-lg shadow hover:shadow-md transition-shadow cursor-pointer ${
-            !message.is_read ? 'ring-2 ring-blue-200' : ''
-          }`}
+            !message.is_read && activeTab === 'incoming' ? 'ring-2 ring-blue-200' : ''
+          } ${activeTab === 'deleted' ? 'opacity-75' : ''}`}
           onClick={() => setSelectedMessage(message)}
         >
           <div className="p-6">
@@ -367,7 +379,9 @@ export function MessagesList() {
               <div className="flex-1">
                 <div className="flex items-center space-x-2 mb-2">
                   <h4 className="text-sm font-medium text-gray-900">
-                    {activeTab === 'incoming' ? getSenderName(message) : `To: ${getSenderName(message)}`}
+                    {activeTab === 'incoming' ? getSenderName(message) : 
+                     activeTab === 'sent' ? `To: ${getSenderName(message)}` :
+                     `From: ${getSenderName(message)}`}
                   </h4>
                   {!message.is_read && activeTab === 'incoming' && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -377,6 +391,11 @@ export function MessagesList() {
                   {activeTab === 'sent' && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                       Sent
+                    </span>
+                  )}
+                  {activeTab === 'deleted' && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                      Deleted
                     </span>
                   )}
                 </div>
@@ -419,10 +438,24 @@ export function MessagesList() {
                         Mark as read
                       </button>
                     )}
+                    {activeTab !== 'deleted' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteMessage(message.id);
+                        }}
+                        className="text-xs text-red-600 hover:text-red-800 flex items-center"
+                      >
+                        <TrashIcon className="h-3 w-3 mr-1" />
+                        Delete
+                      </button>
+                    )}
                     <span className="text-xs text-gray-400">
                       {activeTab === 'incoming' 
                         ? (message.is_read ? 'Read' : 'Unread')
-                        : 'Sent'
+                        : activeTab === 'sent'
+                        ? 'Sent'
+                        : 'Deleted'
                       }
                     </span>
                   </div>
@@ -448,21 +481,41 @@ export function MessagesList() {
             </div>
 
             <div className="space-y-4">
+              {/* Listing Information */}
+              <div className="bg-blue-50 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium text-blue-900">Listing Information</h4>
+                  <button
+                    onClick={() => openListing(selectedMessage.listing_id)}
+                    className="inline-flex items-center px-3 py-1 border border-blue-300 rounded-md text-sm font-medium text-blue-700 bg-white hover:bg-blue-50"
+                  >
+                    <ExternalLinkIcon className="h-4 w-4 mr-1" />
+                    View Listing
+                  </button>
+                </div>
+                <p className="text-sm text-blue-800 mb-1">
+                  <span className="font-medium">Title:</span> {selectedMessage.listing?.title}
+                </p>
+                <p className="text-sm text-blue-800 mb-1">
+                  <span className="font-medium">Price:</span> ${selectedMessage.listing?.price?.toLocaleString()}
+                </p>
+                <p className="text-sm text-blue-800">
+                  <span className="font-medium">Category:</span> {selectedMessage.listing?.category?.name || 'N/A'}
+                </p>
+              </div>
+
+              {/* Message Information */}
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-medium text-gray-900">
-                    From: {getSenderName(selectedMessage)}
+                    {activeTab === 'incoming' ? 'From:' : 
+                     activeTab === 'sent' ? 'To:' : 
+                     'From:'} {getSenderName(selectedMessage)}
                   </h4>
                   <span className="text-sm text-gray-500">
                     {formatDate(selectedMessage.created_at)}
                   </span>
                 </div>
-                <p className="text-sm text-gray-600 mb-2">
-                  About: <span className="font-medium">{selectedMessage.listing?.title}</span>
-                </p>
-                <p className="text-sm text-gray-500">
-                  Price: ${selectedMessage.listing?.price?.toLocaleString()}
-                </p>
               </div>
 
               <div className="bg-white border rounded-lg p-4">
@@ -495,11 +548,31 @@ export function MessagesList() {
                       Reply
                     </button>
                   )}
+                  {activeTab === 'deleted' && (
+                    <button
+                      onClick={() => handleRestoreMessage(selectedMessage.id)}
+                      className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+                    >
+                      <ArrowPathIcon className="h-4 w-4 mr-1" />
+                      Restore
+                    </button>
+                  )}
+                  {activeTab === 'deleted' && (
+                    <button
+                      onClick={() => handlePermanentDelete(selectedMessage.id)}
+                      className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+                    >
+                      <TrashIcon className="h-4 w-4 mr-1" />
+                      Permanently Delete
+                    </button>
+                  )}
                 </div>
                 <div className="text-sm text-gray-500">
                   Status: {activeTab === 'incoming' 
                     ? (selectedMessage.is_read ? 'Read' : 'Unread')
-                    : 'Sent'
+                    : activeTab === 'sent'
+                    ? 'Sent'
+                    : 'Deleted'
                   }
                 </div>
               </div>
