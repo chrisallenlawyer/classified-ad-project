@@ -813,6 +813,60 @@ export const getUserMessages = async (): Promise<Message[]> => {
   })
 }
 
+export const getSentMessages = async (): Promise<Message[]> => {
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    throw new Error('User must be authenticated to view messages')
+  }
+
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('sender_id', user.id)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('Error fetching sent messages:', error)
+    throw error
+  }
+
+  if (!data || data.length === 0) {
+    return []
+  }
+
+  // Get listing info for each message
+  const listingIds = [...new Set(data.map(msg => msg.listing_id))]
+  const { data: listings } = await supabase
+    .from('listings')
+    .select('id, title, price')
+    .in('id', listingIds)
+
+  // Combine the data
+  return data.map(message => {
+    const listing = listings?.find(l => l.id === message.listing_id)
+    
+    return {
+      ...message,
+      sender: {
+        id: user.id,
+        email: user.email || '',
+        user_metadata: user.user_metadata || {}
+      },
+      receiver: {
+        id: message.receiver_id,
+        email: 'receiver@example.com',
+        user_metadata: {}
+      },
+      listing: listing ? {
+        id: listing.id,
+        title: listing.title,
+        price: listing.price
+      } : undefined
+    }
+  })
+}
+
 export const markMessageAsRead = async (messageId: string): Promise<void> => {
   const { error } = await supabase
     .from('messages')

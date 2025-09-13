@@ -7,9 +7,16 @@ import {
   CheckIcon,
   XMarkIcon,
   PaperAirplaneIcon,
-  ArrowUturnLeftIcon
+  ArrowUturnLeftIcon,
+  InboxIcon,
+  PaperAirplaneIcon as SentIcon,
+  ShoppingBagIcon,
+  UserGroupIcon
 } from '@heroicons/react/24/outline';
-import { getUserMessages, markMessageAsRead, sendMessage, Message } from '../services/supabaseApi';
+import { getUserMessages, getSentMessages, markMessageAsRead, sendMessage, Message } from '../services/supabaseApi';
+
+type MessageTab = 'incoming' | 'sent';
+type MessageCategory = 'all' | 'buyers' | 'sellers';
 
 export function MessagesList() {
   const queryClient = useQueryClient();
@@ -18,20 +25,68 @@ export function MessagesList() {
   const [replyMessage, setReplyMessage] = useState('');
   const [isReplying, setIsReplying] = useState(false);
   const [replyError, setReplyError] = useState('');
+  const [activeTab, setActiveTab] = useState<MessageTab>('incoming');
+  const [activeCategory, setActiveCategory] = useState<MessageCategory>('all');
 
-  // Fetch user's messages
-  const { data: messages, isLoading, error } = useQuery(
-    'user-messages',
+  // Fetch incoming messages
+  const { data: incomingMessages, isLoading: incomingLoading, error: incomingError } = useQuery(
+    'incoming-messages',
     getUserMessages,
     {
       refetchInterval: 30000, // Refetch every 30 seconds
     }
   );
 
+  // Fetch sent messages
+  const { data: sentMessages, isLoading: sentLoading, error: sentError } = useQuery(
+    'sent-messages',
+    getSentMessages,
+    {
+      refetchInterval: 30000, // Refetch every 30 seconds
+    }
+  );
+
+  // Determine which messages to show based on active tab
+  const messages = activeTab === 'incoming' ? incomingMessages : sentMessages;
+  const isLoading = activeTab === 'incoming' ? incomingLoading : sentLoading;
+  const error = activeTab === 'incoming' ? incomingError : sentError;
+
+  // Filter messages based on category
+  const filteredMessages = messages?.filter(message => {
+    if (activeCategory === 'all') return true;
+    
+    // For incoming messages: check if sender is a buyer (not the listing owner)
+    if (activeTab === 'incoming') {
+      if (activeCategory === 'buyers') {
+        // This is a message from a buyer to a seller
+        return true; // All incoming messages are from buyers
+      }
+      if (activeCategory === 'sellers') {
+        // This would be a message from a seller, but incoming messages are always from buyers
+        return false;
+      }
+    }
+    
+    // For sent messages: check if receiver is a seller (listing owner)
+    if (activeTab === 'sent') {
+      if (activeCategory === 'sellers') {
+        // This is a message from a buyer to a seller
+        return true; // All sent messages are to sellers
+      }
+      if (activeCategory === 'buyers') {
+        // This would be a message to a buyer, but sent messages are always to sellers
+        return false;
+      }
+    }
+    
+    return true;
+  }) || [];
+
   // Mark message as read mutation
   const markAsReadMutation = useMutation(markMessageAsRead, {
     onSuccess: () => {
-      queryClient.invalidateQueries('user-messages');
+      queryClient.invalidateQueries('incoming-messages');
+      queryClient.invalidateQueries('sent-messages');
     },
   });
 
@@ -42,7 +97,8 @@ export function MessagesList() {
   // Send reply mutation
   const sendReplyMutation = useMutation(sendMessage, {
     onSuccess: () => {
-      queryClient.invalidateQueries('user-messages');
+      queryClient.invalidateQueries('incoming-messages');
+      queryClient.invalidateQueries('sent-messages');
       setReplyMessage('');
       setShowReplyForm(false);
       setReplyError('');
@@ -136,19 +192,169 @@ export function MessagesList() {
     );
   }
 
-  if (!messages || messages.length === 0) {
+  if (!filteredMessages || filteredMessages.length === 0) {
     return (
-      <div className="text-center py-8">
-        <EnvelopeIcon className="mx-auto h-12 w-12 text-gray-400" />
-        <h3 className="mt-2 text-sm font-medium text-gray-900">No messages yet</h3>
-        <p className="mt-1 text-sm text-gray-500">You'll see messages from potential buyers here.</p>
+      <div className="space-y-6">
+        {/* Tab Navigation */}
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('incoming')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'incoming'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <InboxIcon className="h-5 w-5 inline mr-2" />
+              Incoming Messages
+            </button>
+            <button
+              onClick={() => setActiveTab('sent')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'sent'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <SentIcon className="h-5 w-5 inline mr-2" />
+              Sent Messages
+            </button>
+          </nav>
+        </div>
+
+        {/* Category Filter */}
+        <div className="flex space-x-4">
+          <button
+            onClick={() => setActiveCategory('all')}
+            className={`px-3 py-1 rounded-full text-sm font-medium ${
+              activeCategory === 'all'
+                ? 'bg-blue-100 text-blue-800'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            All Messages
+          </button>
+          <button
+            onClick={() => setActiveCategory('buyers')}
+            className={`px-3 py-1 rounded-full text-sm font-medium ${
+              activeCategory === 'buyers'
+                ? 'bg-green-100 text-green-800'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <ShoppingBagIcon className="h-4 w-4 inline mr-1" />
+            From Buyers
+          </button>
+          <button
+            onClick={() => setActiveCategory('sellers')}
+            className={`px-3 py-1 rounded-full text-sm font-medium ${
+              activeCategory === 'sellers'
+                ? 'bg-purple-100 text-purple-800'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <UserGroupIcon className="h-4 w-4 inline mr-1" />
+            To Sellers
+          </button>
+        </div>
+
+        {/* Empty State */}
+        <div className="text-center py-8">
+          <EnvelopeIcon className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">
+            {activeTab === 'incoming' ? 'No incoming messages' : 'No sent messages'}
+          </h3>
+          <p className="mt-1 text-sm text-gray-500">
+            {activeTab === 'incoming' 
+              ? 'You\'ll see messages from potential buyers here.' 
+              : 'Messages you send to sellers will appear here.'
+            }
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {messages.map((message) => (
+    <div className="space-y-6">
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('incoming')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'incoming'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <InboxIcon className="h-5 w-5 inline mr-2" />
+            Incoming Messages
+            {incomingMessages && incomingMessages.length > 0 && (
+              <span className="ml-2 bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded-full">
+                {incomingMessages.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('sent')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'sent'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <SentIcon className="h-5 w-5 inline mr-2" />
+            Sent Messages
+            {sentMessages && sentMessages.length > 0 && (
+              <span className="ml-2 bg-gray-100 text-gray-800 text-xs font-medium px-2 py-0.5 rounded-full">
+                {sentMessages.length}
+              </span>
+            )}
+          </button>
+        </nav>
+      </div>
+
+      {/* Category Filter */}
+      <div className="flex space-x-4">
+        <button
+          onClick={() => setActiveCategory('all')}
+          className={`px-3 py-1 rounded-full text-sm font-medium ${
+            activeCategory === 'all'
+              ? 'bg-blue-100 text-blue-800'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          All Messages
+        </button>
+        <button
+          onClick={() => setActiveCategory('buyers')}
+          className={`px-3 py-1 rounded-full text-sm font-medium ${
+            activeCategory === 'buyers'
+              ? 'bg-green-100 text-green-800'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          <ShoppingBagIcon className="h-4 w-4 inline mr-1" />
+          From Buyers
+        </button>
+        <button
+          onClick={() => setActiveCategory('sellers')}
+          className={`px-3 py-1 rounded-full text-sm font-medium ${
+            activeCategory === 'sellers'
+              ? 'bg-purple-100 text-purple-800'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          <UserGroupIcon className="h-4 w-4 inline mr-1" />
+          To Sellers
+        </button>
+      </div>
+
+      {/* Messages List */}
+      <div className="space-y-4">
+      {filteredMessages.map((message) => (
         <div
           key={message.id}
           className={`bg-white rounded-lg shadow hover:shadow-md transition-shadow cursor-pointer ${
@@ -161,11 +367,16 @@ export function MessagesList() {
               <div className="flex-1">
                 <div className="flex items-center space-x-2 mb-2">
                   <h4 className="text-sm font-medium text-gray-900">
-                    {getSenderName(message)}
+                    {activeTab === 'incoming' ? getSenderName(message) : `To: ${getSenderName(message)}`}
                   </h4>
-                  {!message.is_read && (
+                  {!message.is_read && activeTab === 'incoming' && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                       New
+                    </span>
+                  )}
+                  {activeTab === 'sent' && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                      Sent
                     </span>
                   )}
                 </div>
@@ -183,18 +394,20 @@ export function MessagesList() {
                     {formatDate(message.created_at)}
                   </p>
                   <div className="flex items-center space-x-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedMessage(message);
-                        handleOpenReply();
-                      }}
-                      className="text-xs text-green-600 hover:text-green-800 flex items-center"
-                    >
-                      <ArrowUturnLeftIcon className="h-3 w-3 mr-1" />
-                      Quick Reply
-                    </button>
-                    {!message.is_read && (
+                    {activeTab === 'incoming' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedMessage(message);
+                          handleOpenReply();
+                        }}
+                        className="text-xs text-green-600 hover:text-green-800 flex items-center"
+                      >
+                        <ArrowUturnLeftIcon className="h-3 w-3 mr-1" />
+                        Quick Reply
+                      </button>
+                    )}
+                    {!message.is_read && activeTab === 'incoming' && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -207,7 +420,10 @@ export function MessagesList() {
                       </button>
                     )}
                     <span className="text-xs text-gray-400">
-                      {message.is_read ? 'Read' : 'Unread'}
+                      {activeTab === 'incoming' 
+                        ? (message.is_read ? 'Read' : 'Unread')
+                        : 'Sent'
+                      }
                     </span>
                   </div>
                 </div>
@@ -258,7 +474,7 @@ export function MessagesList() {
 
               <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-2">
-                  {!selectedMessage.is_read && (
+                  {!selectedMessage.is_read && activeTab === 'incoming' && (
                     <button
                       onClick={() => {
                         handleMarkAsRead(selectedMessage.id);
@@ -270,16 +486,21 @@ export function MessagesList() {
                       Mark as Read
                     </button>
                   )}
-                  <button
-                    onClick={handleOpenReply}
-                    className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-                  >
-                    <ArrowUturnLeftIcon className="h-4 w-4 mr-1" />
-                    Reply
-                  </button>
+                  {activeTab === 'incoming' && (
+                    <button
+                      onClick={handleOpenReply}
+                      className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                    >
+                      <ArrowUturnLeftIcon className="h-4 w-4 mr-1" />
+                      Reply
+                    </button>
+                  )}
                 </div>
                 <div className="text-sm text-gray-500">
-                  Status: {selectedMessage.is_read ? 'Read' : 'Unread'}
+                  Status: {activeTab === 'incoming' 
+                    ? (selectedMessage.is_read ? 'Read' : 'Unread')
+                    : 'Sent'
+                  }
                 </div>
               </div>
             </div>
