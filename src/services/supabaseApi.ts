@@ -667,65 +667,96 @@ export interface SendMessageData {
 }
 
 export const sendMessage = async (messageData: SendMessageData): Promise<Message> => {
-  const { data: { user } } = await supabase.auth.getUser()
+  console.log('🚀 sendMessage called with:', messageData)
+  
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  
+  if (authError) {
+    console.error('Auth error:', authError)
+    throw new Error('Authentication error: ' + authError.message)
+  }
   
   if (!user) {
+    console.error('No user found')
     throw new Error('User must be authenticated to send messages')
   }
 
+  console.log('✅ User authenticated:', user.id)
+
   // First, get the listing to find the seller
+  console.log('🔍 Fetching listing:', messageData.listingId)
   const { data: listing, error: listingError } = await supabase
     .from('listings')
-    .select('user_id')
+    .select('user_id, title, price')
     .eq('id', messageData.listingId)
     .single()
 
-  if (listingError || !listing) {
+  if (listingError) {
+    console.error('Listing fetch error:', listingError)
+    throw new Error('Failed to fetch listing: ' + listingError.message)
+  }
+  
+  if (!listing) {
+    console.error('Listing not found')
     throw new Error('Listing not found')
   }
 
-  const { data, error } = await supabase
+  console.log('✅ Listing found:', listing)
+
+  // Insert message without foreign key relationships
+  console.log('💬 Inserting message...')
+  const messagePayload = {
+    content: messageData.content,
+    sender_id: user.id,
+    receiver_id: listing.user_id,
+    listing_id: messageData.listingId
+  }
+  
+  console.log('Message payload:', messagePayload)
+  
+  const { data: message, error } = await supabase
     .from('messages')
-    .insert([{
-      content: messageData.content,
-      sender_id: user.id,
-      receiver_id: listing.user_id,
-      listing_id: messageData.listingId
-    }])
-    .select(`
-      *,
-      sender:users!messages_sender_id_fkey(
-        id,
-        email,
-        user_metadata
-      ),
-      receiver:users!messages_receiver_id_fkey(
-        id,
-        email,
-        user_metadata
-      ),
-      listing:listings(
-        id,
-        title,
-        price
-      )
-    `)
+    .insert([messagePayload])
+    .select('*')
     .single()
 
   if (error) {
-    console.error('Error sending message:', error)
-    throw error
+    console.error('❌ Error sending message:', error)
+    console.error('Error details:', JSON.stringify(error, null, 2))
+    throw new Error('Failed to send message: ' + error.message)
   }
+
+  console.log('✅ Message sent successfully:', message)
 
   // Simulate email notification (in production, this would be handled by the backend)
   console.log('📧 Email notification simulation:')
-  console.log(`To: ${data.receiver?.email}`)
-  console.log(`Subject: New message about "${data.listing?.title}"`)
-  console.log(`From: ${data.sender?.email}`)
-  console.log(`Message: ${data.content}`)
+  console.log(`To: seller@example.com`)
+  console.log(`Subject: New message about "${listing.title}"`)
+  console.log(`From: ${user.email}`)
+  console.log(`Message: ${messageData.content}`)
   console.log('---')
 
-  return data
+  const result = {
+    ...message,
+    sender: {
+      id: user.id,
+      email: user.email || '',
+      user_metadata: user.user_metadata || {}
+    },
+    receiver: {
+      id: listing.user_id,
+      email: 'seller@example.com',
+      user_metadata: {}
+    },
+    listing: {
+      id: listing.id,
+      title: listing.title,
+      price: listing.price
+    }
+  }
+  
+  console.log('✅ Returning message result:', result)
+  return result
 }
 
 export const getUserMessages = async (): Promise<Message[]> => {
@@ -737,24 +768,7 @@ export const getUserMessages = async (): Promise<Message[]> => {
 
   const { data, error } = await supabase
     .from('messages')
-    .select(`
-      *,
-      sender:users!messages_sender_id_fkey(
-        id,
-        email,
-        user_metadata
-      ),
-      receiver:users!messages_receiver_id_fkey(
-        id,
-        email,
-        user_metadata
-      ),
-      listing:listings(
-        id,
-        title,
-        price
-      )
-    `)
+    .select('*')
     .eq('receiver_id', user.id)
     .order('created_at', { ascending: false })
 
@@ -763,7 +777,40 @@ export const getUserMessages = async (): Promise<Message[]> => {
     throw error
   }
 
-  return data || []
+  if (!data || data.length === 0) {
+    return []
+  }
+
+  // Get listing info for each message
+  const listingIds = [...new Set(data.map(msg => msg.listing_id))]
+  const { data: listings } = await supabase
+    .from('listings')
+    .select('id, title, price')
+    .in('id', listingIds)
+
+  // Combine the data
+  return data.map(message => {
+    const listing = listings?.find(l => l.id === message.listing_id)
+    
+    return {
+      ...message,
+      sender: {
+        id: message.sender_id,
+        email: 'sender@example.com',
+        user_metadata: {}
+      },
+      receiver: {
+        id: user.id,
+        email: user.email || '',
+        user_metadata: user.user_metadata || {}
+      },
+      listing: listing ? {
+        id: listing.id,
+        title: listing.title,
+        price: listing.price
+      } : undefined
+    }
+  })
 }
 
 export const markMessageAsRead = async (messageId: string): Promise<void> => {
