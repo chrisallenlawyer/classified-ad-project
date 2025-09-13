@@ -211,14 +211,14 @@ export const subscriptionApi = {
     return data || [];
   },
 
-  // Check if user can create listing (corrected logic)
+  // Check if user can create listing (corrected logic with separate limits)
   async canUserCreateListing(userId: string, listingType: 'free' | 'featured' | 'vehicle'): Promise<{ 
     canCreate: boolean; 
     reason?: string; 
     canPayForAdditional?: boolean; 
     additionalCost?: number;
     requiresPayment?: boolean;
-    paymentType?: 'additional_listing' | 'vehicle_modifier' | 'featured_modifier';
+    paymentType?: 'additional_basic' | 'additional_vehicle' | 'additional_featured';
   }> {
     console.log('API: Checking canUserCreateListing for:', userId, listingType);
     
@@ -238,28 +238,74 @@ export const subscriptionApi = {
         vehicle_listings_used: 0
       };
 
-      // Get limits
+      // Get limits from subscription plan
       let freeLimit = 5; // Default free limit
+      let maxFeaturedInFree = 1; // Default max featured in free pool
+      let maxVehicleInFree = 1; // Default max vehicle in free pool
+      
       if (subscription?.subscription_plan) {
         freeLimit = subscription.subscription_plan.max_listings || 5;
+        maxFeaturedInFree = subscription.subscription_plan.max_featured_listings || 1;
+        maxVehicleInFree = subscription.subscription_plan.max_vehicle_listings || 1;
       }
 
       const freeUsed = currentUsage.free_listings_used || 0;
       const featuredUsed = currentUsage.featured_listings_used || 0;
       const vehicleUsed = currentUsage.vehicle_listings_used || 0;
 
-      console.log(`API: Usage - Free: ${freeUsed}/${freeLimit}, Featured: ${featuredUsed}, Vehicle: ${vehicleUsed}`);
+      console.log(`API: Usage - Free: ${freeUsed}/${freeLimit}, Featured: ${featuredUsed}/${maxFeaturedInFree}, Vehicle: ${vehicleUsed}/${maxVehicleInFree}`);
 
-      // Check if user has free listings remaining
-      const hasFreeListings = freeUsed < freeLimit;
-
-      if (hasFreeListings) {
-        // User can create any type of listing for free
-        return { 
-          canCreate: true,
-          canPayForAdditional: true,
-          requiresPayment: false
-        };
+      // Check if user can create this type of listing for free
+      if (freeUsed < freeLimit) {
+        // User has free listings remaining
+        if (listingType === 'free') {
+          // Basic free listing - always allowed if free pool not exhausted
+          return { 
+            canCreate: true,
+            canPayForAdditional: true,
+            requiresPayment: false
+          };
+        } else if (listingType === 'featured') {
+          // Featured listing - check if they can use featured in free pool
+          if (featuredUsed < maxFeaturedInFree) {
+            return { 
+              canCreate: true,
+              canPayForAdditional: true,
+              requiresPayment: false
+            };
+          } else {
+            // Can't use featured in free pool, but can pay for additional featured
+            const featuredCost = await this.getAdditionalModifierCost('featured');
+            return {
+              canCreate: false,
+              reason: `You've used all ${maxFeaturedInFree} featured listing(s) in your free pool. You can pay $${featuredCost} for additional featured listings.`,
+              canPayForAdditional: true,
+              additionalCost: featuredCost,
+              requiresPayment: true,
+              paymentType: 'additional_featured'
+            };
+          }
+        } else if (listingType === 'vehicle') {
+          // Vehicle listing - check if they can use vehicle in free pool
+          if (vehicleUsed < maxVehicleInFree) {
+            return { 
+              canCreate: true,
+              canPayForAdditional: true,
+              requiresPayment: false
+            };
+          } else {
+            // Can't use vehicle in free pool, but can pay for additional vehicle
+            const vehicleCost = await this.getAdditionalModifierCost('vehicle');
+            return {
+              canCreate: false,
+              reason: `You've used all ${maxVehicleInFree} vehicle listing(s) in your free pool. You can pay $${vehicleCost} for additional vehicle listings.`,
+              canPayForAdditional: true,
+              additionalCost: vehicleCost,
+              requiresPayment: true,
+              paymentType: 'additional_vehicle'
+            };
+          }
+        }
       }
 
       // No free listings remaining - check if they can pay for additional
@@ -268,33 +314,33 @@ export const subscriptionApi = {
         const additionalCost = await this.getAdditionalListingCost();
         return {
           canCreate: false,
-          reason: `You've reached your free listing limit (${freeLimit}). You can pay $${additionalCost} for additional listings.`,
+          reason: `You've reached your free listing limit (${freeLimit}). You can pay $${additionalCost} for additional basic listings.`,
           canPayForAdditional: true,
           additionalCost,
           requiresPayment: true,
-          paymentType: 'additional_listing'
+          paymentType: 'additional_basic'
         };
       } else if (listingType === 'featured') {
-        // Featured listing - they can pay for featured modifier
+        // Featured listing - they can pay for additional featured
         const featuredCost = await this.getAdditionalModifierCost('featured');
         return {
           canCreate: false,
-          reason: `You've reached your free listing limit (${freeLimit}). You can pay $${featuredCost} to make this listing featured.`,
+          reason: `You've reached your free listing limit (${freeLimit}). You can pay $${featuredCost} for additional featured listings.`,
           canPayForAdditional: true,
           additionalCost: featuredCost,
           requiresPayment: true,
-          paymentType: 'featured_modifier'
+          paymentType: 'additional_featured'
         };
       } else if (listingType === 'vehicle') {
-        // Vehicle listing - they can pay for vehicle modifier
+        // Vehicle listing - they can pay for additional vehicle
         const vehicleCost = await this.getAdditionalModifierCost('vehicle');
         return {
           canCreate: false,
-          reason: `You've reached your free listing limit (${freeLimit}). You can pay $${vehicleCost} to make this listing a vehicle listing.`,
+          reason: `You've reached your free listing limit (${freeLimit}). You can pay $${vehicleCost} for additional vehicle listings.`,
           canPayForAdditional: true,
           additionalCost: vehicleCost,
           requiresPayment: true,
-          paymentType: 'vehicle_modifier'
+          paymentType: 'additional_vehicle'
         };
       }
 
@@ -346,7 +392,7 @@ export const subscriptionApi = {
     }
   },
 
-  // Update user usage tracking (corrected logic)
+  // Update user usage tracking (corrected logic with proper counting)
   async updateUserListingUsage(userId: string, listingType: 'free' | 'featured' | 'vehicle', isPaidAdditional: boolean = false): Promise<void> {
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
     
@@ -377,15 +423,20 @@ export const subscriptionApi = {
       };
 
       if (isPaidAdditional) {
-        // Paid additional listing - only count the specific type, not free
+        // Paid additional listing - only count the specific type, NOT free
+        console.log('Paid additional listing - not counting against free pool');
         if (listingType === 'featured') {
           updates.featured_listings_used = (currentUsage.featured_listings_used || 0) + 1;
         } else if (listingType === 'vehicle') {
           updates.vehicle_listings_used = (currentUsage.vehicle_listings_used || 0) + 1;
+        } else if (listingType === 'free') {
+          // Additional basic listing - don't count against free pool
+          // Just count total listings created
         }
         // Don't increment free_listings_used for paid additional listings
       } else {
         // Free listing - count against free pool and any modifiers
+        console.log('Free listing - counting against free pool');
         updates.free_listings_used = (currentUsage.free_listings_used || 0) + 1;
         
         if (listingType === 'featured') {

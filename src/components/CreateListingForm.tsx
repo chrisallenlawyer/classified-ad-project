@@ -35,7 +35,7 @@ const CreateListingForm: React.FC = () => {
   const [userUsage, setUserUsage] = useState<any>(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState(0);
-  const [paymentType, setPaymentType] = useState<'featured_listing' | 'vehicle_listing' | 'vehicle_featured_listing' | 'additional_listing' | 'vehicle_modifier' | 'featured_modifier'>('featured_listing');
+  const [paymentType, setPaymentType] = useState<'featured_listing' | 'vehicle_listing' | 'vehicle_featured_listing' | 'additional_basic' | 'additional_vehicle' | 'additional_featured'>('featured_listing');
   const [limitError, setLimitError] = useState('');
   const [showPaymentOption, setShowPaymentOption] = useState(false);
   const [additionalListingCost, setAdditionalListingCost] = useState(0);
@@ -715,17 +715,17 @@ const CreateListingForm: React.FC = () => {
                     <div>
                       <span className="text-gray-600">Featured Listings:</span>
                       <span className="ml-2 font-medium">
-                        {userUsage.featured_listings_used || 0}
+                        {userUsage.featured_listings_used || 0} / {userSubscription.subscription_plan?.max_featured_listings || 1}
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-600">Vehicle Listings:</span>
                       <span className="ml-2 font-medium">
-                        {userUsage.vehicle_listings_used || 0}
+                        {userUsage.vehicle_listings_used || 0} / {userSubscription.subscription_plan?.max_vehicle_listings || 1}
                       </span>
                     </div>
                     <div className="text-xs text-gray-500 mt-2">
-                      All listing types count against your free listing pool. Additional featured/vehicle listings cost extra.
+                      Free pool: {userSubscription.subscription_plan?.max_listings || 5} total listings, max {userSubscription.subscription_plan?.max_featured_listings || 1} featured, max {userSubscription.subscription_plan?.max_vehicle_listings || 1} vehicle.
                     </div>
                   </div>
                 </div>
@@ -738,14 +738,14 @@ const CreateListingForm: React.FC = () => {
                     <CreditCardIcon className="h-5 w-5 text-yellow-500 mr-2" />
                     <div>
                       <p className="text-sm font-medium text-yellow-900">
-                        {paymentType === 'additional_listing' && 'Additional Listing Fee Required'}
-                        {paymentType === 'featured_modifier' && 'Featured Modifier Fee Required'}
-                        {paymentType === 'vehicle_modifier' && 'Vehicle Modifier Fee Required'}
+                        {paymentType === 'additional_basic' && 'Additional Basic Listing Fee Required'}
+                        {paymentType === 'additional_featured' && 'Additional Featured Listing Fee Required'}
+                        {paymentType === 'additional_vehicle' && 'Additional Vehicle Listing Fee Required'}
                       </p>
                       <p className="text-xs text-yellow-700">
-                        {paymentType === 'additional_listing' && `You've reached your free listing limit. Additional listings cost $${additionalListingCost}.`}
-                        {paymentType === 'featured_modifier' && `You've reached your free listing limit. Making this listing featured costs $${additionalListingCost}.`}
-                        {paymentType === 'vehicle_modifier' && `You've reached your free listing limit. Making this listing a vehicle listing costs $${additionalListingCost}.`}
+                        {paymentType === 'additional_basic' && `You've reached your free listing limit. Additional basic listings cost $${additionalListingCost}.`}
+                        {paymentType === 'additional_featured' && `You've used all featured listings in your free pool. Additional featured listings cost $${additionalListingCost}.`}
+                        {paymentType === 'additional_vehicle' && `You've used all vehicle listings in your free pool. Additional vehicle listings cost $${additionalListingCost}.`}
                       </p>
                     </div>
                   </div>

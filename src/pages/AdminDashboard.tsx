@@ -17,9 +17,9 @@ import {
 import { getCategories, createCategory, updateCategory, deleteCategory, getListings, updateListing, deleteListing, getUsers, updateUserRole, isUserAdmin } from '../services/supabaseApi';
 import { useAuth } from '../contexts/AuthContext';
 import { ColorPaletteManager } from '../components/ColorPaletteManager';
-import PricingManager from '../components/PricingManager';
 import CollapsibleSection from '../components/CollapsibleSection';
 import { SubscriptionLimitsManager } from '../components/SubscriptionLimitsManager';
+import { PricingManager } from '../components/PricingManager';
 
 interface Category {
   id: string;
@@ -89,6 +89,7 @@ export function AdminDashboard() {
   const [selectedListing, setSelectedListing] = useState<any>(null);
   const [listingSearchTerm, setListingSearchTerm] = useState('');
   const [showSubscriptionLimitsManager, setShowSubscriptionLimitsManager] = useState(false);
+  const [showPricingManager, setShowPricingManager] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -678,8 +679,14 @@ export function AdminDashboard() {
             </div>
             <div className="bg-white rounded-lg p-4 border border-gray-200">
               <h3 className="font-medium text-gray-900 mb-2">Pricing Configuration</h3>
-              <p className="text-sm text-gray-600 mb-3">Set prices for featured listings and vehicle listings.</p>
-              <div className="text-xs text-gray-500">Featured: $5, Vehicles: $20</div>
+              <p className="text-sm text-gray-600 mb-3">Set prices for additional listings and modifiers.</p>
+              <div className="text-xs text-gray-500">Additional Basic, Featured, Vehicle listings</div>
+              <button
+                onClick={() => setShowPricingManager(true)}
+                className="mt-2 inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-white bg-primary-600 hover:bg-primary-700"
+              >
+                Manage Pricing
+              </button>
             </div>
             <div className="bg-white rounded-lg p-4 border border-gray-200">
               <h3 className="font-medium text-gray-900 mb-2">Payment Settings</h3>
@@ -1429,6 +1436,11 @@ export function AdminDashboard() {
       {/* Subscription Limits Manager Modal */}
       {showSubscriptionLimitsManager && (
         <SubscriptionLimitsManager onClose={() => setShowSubscriptionLimitsManager(false)} />
+      )}
+
+      {/* Pricing Manager Modal */}
+      {showPricingManager && (
+        <PricingManager onClose={() => setShowPricingManager(false)} />
       )}
     </div>
   );
