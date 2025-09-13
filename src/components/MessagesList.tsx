@@ -593,8 +593,7 @@ export function MessagesList() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
-
-
