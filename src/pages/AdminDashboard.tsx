@@ -89,7 +89,6 @@ export function AdminDashboard() {
   const [selectedListing, setSelectedListing] = useState<any>(null);
   const [listingSearchTerm, setListingSearchTerm] = useState('');
   const [showSubscriptionLimitsManager, setShowSubscriptionLimitsManager] = useState(false);
-  const [showPricingManager, setShowPricingManager] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -1015,11 +1014,6 @@ export function AdminDashboard() {
           )}
         </div>
       </CollapsibleSection>
-
-      {/* Pricing Manager Modal */}
-      {showPricingManager && (
-        <PricingManager onClose={() => setShowPricingManager(false)} />
-      )}
 
       {/* Email Modal */}
       {showEmailModal && (
