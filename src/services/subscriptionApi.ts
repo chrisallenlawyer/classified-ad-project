@@ -211,8 +211,8 @@ export const subscriptionApi = {
     return data || [];
   },
 
-  // Check if user can create listing
-  async canUserCreateListing(userId: string, listingType: 'free' | 'featured' | 'vehicle'): Promise<boolean> {
+  // Check if user can create listing (new logic: free listings are a pool)
+  async canUserCreateListing(userId: string, listingType: 'free' | 'featured' | 'vehicle'): Promise<{ canCreate: boolean; reason?: string; canPayForAdditional?: boolean; additionalCost?: number }> {
     console.log('API: Checking canUserCreateListing for:', userId, listingType);
     
     try {
@@ -225,84 +225,79 @@ export const subscriptionApi = {
       console.log('API: Subscription data:', subscription);
       console.log('API: Usage data:', usage);
 
-      if (!subscription || !subscription.subscription_plan) {
-        console.log('API: No subscription found, checking usage data for free listings');
-        
-        // If no subscription but we have usage data, check free listing limit
-        if (usage && listingType === 'free') {
-          const freeUsed = usage.free_listings_used || 0;
-          const freeLimit = 5; // Default free limit
-          console.log(`API: Free limit check (no subscription): ${freeUsed}/${freeLimit}`);
-          return freeUsed < freeLimit;
-        }
-        
-        // For paid listings without subscription, deny
-        if (listingType !== 'free') {
-          console.log('API: No subscription found, denying paid listing');
-          return false;
-        }
-        
-        // For free listings without usage data, allow
-        console.log('API: No subscription or usage data, allowing free listing');
-        return true;
-      }
-
-      const plan = subscription.subscription_plan;
       const currentUsage = usage || {
         free_listings_used: 0,
         featured_listings_used: 0,
         vehicle_listings_used: 0
       };
 
-      // For free listings, also count actual listings in database as backup
-      if (listingType === 'free') {
-        const { data: actualListings, error: listingError } = await supabase
-          .from('listings')
-          .select('id, listing_type')
-          .eq('user_id', userId)
-          .eq('listing_type', 'free');
-
-        if (!listingError && actualListings) {
-          const actualFreeCount = actualListings.length;
-          const freeLimit = plan.max_listings || 5;
-          console.log(`API: Free limit check (actual count): ${actualFreeCount}/${freeLimit}`);
-          console.log(`API: Free limit check (usage data): ${currentUsage.free_listings_used}/${freeLimit}`);
-          
-          // Use the higher of the two counts to be safe
-          const maxCount = Math.max(actualFreeCount, currentUsage.free_listings_used || 0);
-          console.log(`API: Using max count: ${maxCount}/${freeLimit}`);
-          return maxCount < freeLimit;
-        }
+      // Get free listing limit (this is the total pool of free listings)
+      let freeLimit = 5; // Default free limit
+      if (subscription?.subscription_plan) {
+        freeLimit = subscription.subscription_plan.max_listings || 5;
       }
 
-      // Check limits based on listing type
-      switch (listingType) {
-        case 'free':
-          const freeLimit = plan.max_listings || 5;
-          const freeUsed = currentUsage.free_listings_used || 0;
-          console.log(`API: Free limit check: ${freeUsed}/${freeLimit}`);
-          return freeUsed < freeLimit;
-        
-        case 'featured':
-          const featuredLimit = plan.max_featured_listings || 0;
-          const featuredUsed = currentUsage.featured_listings_used || 0;
-          console.log(`API: Featured limit check: ${featuredUsed}/${featuredLimit}`);
-          return featuredUsed < featuredLimit;
-        
-        case 'vehicle':
-          const vehicleLimit = plan.max_vehicle_listings || 0;
-          const vehicleUsed = currentUsage.vehicle_listings_used || 0;
-          console.log(`API: Vehicle limit check: ${vehicleUsed}/${vehicleLimit}`);
-          return vehicleUsed < vehicleLimit;
-        
-        default:
-          console.log('API: Unknown listing type, denying');
-          return false;
+      const freeUsed = currentUsage.free_listings_used || 0;
+      const canCreateFree = freeUsed < freeLimit;
+
+      console.log(`API: Free limit check: ${freeUsed}/${freeLimit}, canCreate: ${canCreateFree}`);
+
+      // If user can create free listings, they can create any type (free, featured, vehicle)
+      if (canCreateFree) {
+        return { 
+          canCreate: true,
+          canPayForAdditional: true // They can always pay for more after free limit
+        };
       }
+
+      // If free limit reached, check if they can pay for additional listings
+      const additionalCost = await this.getAdditionalListingCost();
+      return {
+        canCreate: false,
+        reason: `You've reached your free listing limit (${freeLimit}). You can pay $${additionalCost} for additional listings.`,
+        canPayForAdditional: true,
+        additionalCost
+      };
+
     } catch (error) {
       console.error('API: Error checking limits:', error);
-      // If there's an error, allow free listings but deny paid ones
-      return listingType === 'free';
+      return { 
+        canCreate: true, // Allow on error for free listings
+        canPayForAdditional: true
+      };
+    }
+  },
+
+  // Get cost for additional listings after free limit is reached
+  async getAdditionalListingCost(): Promise<number> {
+    try {
+      const { data } = await supabase
+        .from('pricing_config')
+        .select('config_value')
+        .eq('config_key', 'additional_listing_price')
+        .single();
+      
+      return data?.config_value || 5.00;
+    } catch (error) {
+      console.error('Error getting additional listing cost:', error);
+      return 5.00; // Default cost
+    }
+  },
+
+  // Get cost for additional featured/vehicle modifiers
+  async getAdditionalModifierCost(type: 'featured' | 'vehicle'): Promise<number> {
+    try {
+      const configKey = type === 'featured' ? 'additional_featured_price' : 'additional_vehicle_price';
+      const { data } = await supabase
+        .from('pricing_config')
+        .select('config_value')
+        .eq('config_key', configKey)
+        .single();
+      
+      return data?.config_value || (type === 'featured' ? 2.99 : 4.99);
+    } catch (error) {
+      console.error(`Error getting ${type} modifier cost:`, error);
+      return type === 'featured' ? 2.99 : 4.99;
     }
   },
 

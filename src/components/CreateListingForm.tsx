@@ -37,6 +37,8 @@ const CreateListingForm: React.FC = () => {
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentType, setPaymentType] = useState<'featured_listing' | 'vehicle_listing' | 'vehicle_featured_listing'>('featured_listing');
   const [limitError, setLimitError] = useState('');
+  const [showPaymentOption, setShowPaymentOption] = useState(false);
+  const [additionalListingCost, setAdditionalListingCost] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -114,26 +116,9 @@ const CreateListingForm: React.FC = () => {
       [name]: value
     };
     
-    // If category is changed, check if it's a vehicle category
-    if (name === 'category_id') {
-      const selectedCategory = categories.find(cat => cat.id === value);
-      if (selectedCategory?.is_vehicle) {
-        // For vehicle categories, only allow vehicle or featured (not free)
-        if (formData.listing_type === 'free') {
-          newFormData = {
-            ...newFormData,
-            listing_type: 'vehicle'
-          };
-        }
-        // If already featured or vehicle, keep it
-      } else if (formData.listing_type === 'vehicle') {
-        // If switching away from vehicle category, reset to free
-        newFormData = {
-          ...newFormData,
-          listing_type: 'free'
-        };
-      }
-    }
+    // In the new system, all listing types are available for all categories
+    // The type just determines if it's featured/vehicle, but all count against the free pool
+    // No need to change listing_type based on category
     
     setFormData(newFormData);
     
@@ -187,31 +172,24 @@ const CreateListingForm: React.FC = () => {
       // For vehicle categories, always check vehicle limits regardless of listing type
       const selectedCategory = categories.find(cat => cat.id === formData.category_id);
       const isVehicleCategory = selectedCategory?.is_vehicle;
-      const checkType = isVehicleCategory ? 'vehicle' : type;
-      
-      console.log('Checking limits for user:', user.id, 'listing_type:', checkType);
+      console.log('Checking limits for user:', user.id, 'listing_type:', type);
       console.log('User subscription:', userSubscription);
       console.log('User usage:', userUsage);
       
-      const canCreate = await subscriptionApi.canUserCreateListing(user.id, checkType);
-      if (!canCreate) {
-        const plan = userSubscription?.subscription_plan;
-        const usage = userUsage;
-        
-        if (checkType === 'free') {
-          const freeLimit = plan?.max_listings || 5;
-          const used = usage?.free_listings_used || 0;
-          setLimitError(`You've reached your free listing limit (${used}/${freeLimit}). Please upgrade your plan or wait until next month.`);
-        } else if (checkType === 'featured') {
-          const featuredLimit = plan?.max_featured_listings || 0;
-          const used = usage?.featured_listings_used || 0;
-          setLimitError(`You've reached your featured listing limit (${used}/${featuredLimit}). Please upgrade your plan or wait until next month.`);
-        } else if (checkType === 'vehicle') {
-          const vehicleLimit = plan?.max_vehicle_listings || 0;
-          const used = usage?.vehicle_listings_used || 0;
-          setLimitError(`You've reached your vehicle listing limit (${used}/${vehicleLimit}). Please upgrade your plan or wait until next month.`);
+      const limitCheck = await subscriptionApi.canUserCreateListing(user.id, type);
+      
+      if (!limitCheck.canCreate) {
+        if (limitCheck.canPayForAdditional && limitCheck.additionalCost) {
+          // User can pay for additional listings
+          setLimitError(limitCheck.reason || 'You can pay for additional listings.');
+          setShowPaymentOption(true);
+          setAdditionalListingCost(limitCheck.additionalCost);
+          return;
+        } else {
+          // User cannot create any more listings
+          setLimitError(limitCheck.reason || 'You cannot create any more listings.');
+          return;
         }
-        return;
       }
     } catch (error) {
       console.error('Error checking listing limits:', error);
@@ -219,26 +197,17 @@ const CreateListingForm: React.FC = () => {
       return;
     }
     
-    // Set payment amount and type based on category and listing type
-    const selectedCategory = categories.find(cat => cat.id === formData.category_id);
-    const isVehicleCategory = selectedCategory?.is_vehicle;
-    
-    if (isVehicleCategory) {
-      if (type === 'featured') {
-        // Vehicle category + featured = both fees
-        setPaymentAmount((pricingConfig.vehicle_listing_price?.amount || 20) + (pricingConfig.featured_listing_price?.amount || 5));
-        setPaymentType('vehicle_featured_listing');
-      } else {
-        // Vehicle category + vehicle = just vehicle fee
-        setPaymentAmount(pricingConfig.vehicle_listing_price?.amount || 20);
-        setPaymentType('vehicle_listing');
-      }
-    } else if (type === 'featured') {
-      setPaymentAmount(pricingConfig.featured_listing_price?.amount || 5);
-      setPaymentType('featured_listing');
-    } else if (type === 'vehicle') {
-      setPaymentAmount(pricingConfig.vehicle_listing_price?.amount || 20);
-      setPaymentType('vehicle_listing');
+    // Set payment amount and type based on listing type
+    // In the new system, all listings are free until the pool is exhausted
+    // Then users pay for additional listings
+    if (type === 'free') {
+      // Free listing - no payment required
+      setPaymentAmount(0);
+      setPaymentType('featured_listing'); // Default, won't be used
+    } else {
+      // Featured or vehicle listing - still free if within pool
+      setPaymentAmount(0);
+      setPaymentType('featured_listing'); // Default, won't be used
     }
   };
 
@@ -263,24 +232,14 @@ const CreateListingForm: React.FC = () => {
       const expirationDate = new Date();
       expirationDate.setDate(expirationDate.getDate() + daysToAdd);
 
-      // Determine final listing type and fee based on category
-      const selectedCategory = categories.find(cat => cat.id === formData.category_id);
-      const isVehicleCategory = selectedCategory?.is_vehicle;
-      
+      // In the new system, all listings are free until the pool is exhausted
+      // The listing type determines the features (featured/vehicle) but all count against free pool
       let finalListingType = formData.listing_type;
       let finalListingFee = 0;
       
-      if (isVehicleCategory) {
-        // For vehicle categories, determine if it's featured + vehicle
-        if (formData.listing_type === 'featured') {
-          finalListingType = 'vehicle';
-          finalListingFee = paymentAmount || ((pricingConfig.vehicle_listing_price?.amount || 20) + (pricingConfig.featured_listing_price?.amount || 5));
-        } else {
-          finalListingType = 'vehicle';
-          finalListingFee = paymentAmount || (pricingConfig.vehicle_listing_price?.amount || 20);
-        }
-      } else if (formData.listing_type !== 'free') {
-        finalListingFee = paymentAmount || 0;
+      // If user has reached free limit, they need to pay for additional listings
+      if (showPaymentOption) {
+        finalListingFee = additionalListingCost;
       }
 
       const listingData = {
@@ -296,7 +255,9 @@ const CreateListingForm: React.FC = () => {
         expires_at: expirationDate.toISOString(),
         images: images,
         listing_type: finalListingType,
-        listing_fee: finalListingFee
+        listing_fee: finalListingFee,
+        is_featured: finalListingType === 'featured',
+        is_promoted: false // Promoted is separate from featured
       };
 
       console.log('About to call createListingWithImages with:', listingData);
@@ -387,13 +348,8 @@ const CreateListingForm: React.FC = () => {
       return;
     }
 
-    // Check if trying to create a free listing for a vehicle category
-    const selectedCategory = categories.find(cat => cat.id === formData.category_id);
-    if (selectedCategory?.is_vehicle && formData.listing_type === 'free') {
-      setError('Vehicle categories require a vehicle listing fee. Please select "Vehicle Listing" or "Featured Listing" instead.');
-      setIsLoading(false);
-      return;
-    }
+    // In the new system, all listing types are available for all categories
+    // No need to check for vehicle category restrictions
 
     if (!formData.location.trim()) {
       setError('Location is required');
@@ -401,33 +357,8 @@ const CreateListingForm: React.FC = () => {
       return;
     }
 
-    // Check if payment is required
-    const isVehicleCategory = selectedCategory?.is_vehicle;
-    
-    if (formData.listing_type === 'featured' || formData.listing_type === 'vehicle' || isVehicleCategory) {
-      // Determine payment type and amount
-      if (isVehicleCategory) {
-        if (formData.listing_type === 'featured') {
-          // Vehicle category + featured = both fees
-          setPaymentType('vehicle_featured_listing');
-          setPaymentAmount((pricingConfig.vehicle_listing_price?.amount || 20) + (pricingConfig.featured_listing_price?.amount || 5));
-        } else {
-          // Vehicle category + vehicle = just vehicle fee
-          setPaymentType('vehicle_listing');
-          setPaymentAmount(pricingConfig.vehicle_listing_price?.amount || 20);
-        }
-      } else if (formData.listing_type === 'featured') {
-        setPaymentType('featured_listing');
-        setPaymentAmount(pricingConfig.featured_listing_price?.amount || 5);
-      } else {
-        setPaymentType('vehicle_listing');
-        setPaymentAmount(pricingConfig.vehicle_listing_price?.amount || 20);
-      }
-      
-      setShowPaymentForm(true);
-      setIsLoading(false);
-      return;
-    }
+    // In the new system, all listings are free until the pool is exhausted
+    // No payment required for any listing type
 
     // For free listings, create directly
     await createListing();
@@ -688,28 +619,17 @@ const CreateListingForm: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Free Listing */}
                 <div
-                  className={`relative border-2 rounded-lg p-4 transition-all ${
+                  className={`relative border-2 rounded-lg p-4 cursor-pointer transition-all ${
                     formData.listing_type === 'free'
                       ? 'border-primary-500 bg-primary-50'
                       : 'border-gray-200 hover:border-gray-300'
-                  } ${
-                    formData.category_id && categories.find(cat => cat.id === formData.category_id)?.is_vehicle
-                      ? 'opacity-50 cursor-not-allowed'
-                      : 'cursor-pointer'
                   }`}
-                  onClick={() => {
-                    if (!(formData.category_id && categories.find(cat => cat.id === formData.category_id)?.is_vehicle)) {
-                      handleListingTypeChange('free');
-                    }
-                  }}
+                  onClick={() => handleListingTypeChange('free')}
                 >
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-sm font-medium text-gray-900">Free Listing</h3>
                       <p className="text-xs text-gray-600 mt-1">Basic listing visibility</p>
-                      {formData.category_id && categories.find(cat => cat.id === formData.category_id)?.is_vehicle && (
-                        <p className="text-xs text-red-600 mt-1">Not available for vehicle categories (use Featured or Vehicle listing)</p>
-                      )}
                     </div>
                     <div className="flex items-center">
                       {formData.listing_type === 'free' && (
@@ -743,17 +663,7 @@ const CreateListingForm: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  <div className="mt-2 text-lg font-bold text-primary-600">
-                    {formData.category_id && categories.find(cat => cat.id === formData.category_id)?.is_vehicle ? (
-                      <div>
-                        <div className="text-sm text-gray-500 line-through">${pricingConfig.featured_listing_price?.amount || 5}</div>
-                        <div>${(pricingConfig.vehicle_listing_price?.amount || 20) + (pricingConfig.featured_listing_price?.amount || 5)}</div>
-                        <div className="text-xs text-gray-600">Vehicle + Featured</div>
-                      </div>
-                    ) : (
-                      `$${pricingConfig.featured_listing_price?.amount || 5}`
-                    )}
-                  </div>
+                  <div className="mt-2 text-lg font-bold text-green-600">$0</div>
                 </div>
 
                 {/* Vehicle Listing */}
@@ -779,9 +689,7 @@ const CreateListingForm: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  <div className="mt-2 text-lg font-bold text-primary-600">
-                    ${pricingConfig.vehicle_listing_price?.amount || 20}
-                  </div>
+                  <div className="mt-2 text-lg font-bold text-green-600">$0</div>
                 </div>
               </div>
 
@@ -789,40 +697,31 @@ const CreateListingForm: React.FC = () => {
               {userSubscription && userUsage && (
                 <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
                   <h4 className="text-sm font-medium text-gray-900 mb-3">Your Current Usage</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div className="space-y-1 text-sm">
                     <div>
-                      <span className="text-gray-600">Free Listings:</span>
+                      <span className="text-gray-600">Free Listings Used:</span>
                       <span className="ml-2 font-medium">
                         {userUsage.free_listings_used || 0} / {userSubscription.subscription_plan?.max_listings || 5}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-gray-600">Featured Listings:</span>
-                      <span className="ml-2 font-medium">
-                        {userUsage.featured_listings_used || 0} / {userSubscription.subscription_plan?.max_featured_listings || 0}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Vehicle Listings:</span>
-                      <span className="ml-2 font-medium">
-                        {userUsage.vehicle_listings_used || 0} / {userSubscription.subscription_plan?.max_vehicle_listings || 0}
-                      </span>
+                    <div className="text-xs text-gray-500 mt-2">
+                      All listing types (Free, Featured, Vehicle) count against your free listing pool.
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Payment Info */}
-              {formData.listing_type !== 'free' && (
-                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              {/* Payment Info - Only show if user has reached free limit */}
+              {showPaymentOption && (
+                <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <div className="flex items-center">
-                    <CreditCardIcon className="h-5 w-5 text-blue-500 mr-2" />
+                    <CreditCardIcon className="h-5 w-5 text-yellow-500 mr-2" />
                     <div>
-                      <p className="text-sm font-medium text-blue-900">
-                        Payment Required
+                      <p className="text-sm font-medium text-yellow-900">
+                        Additional Listing Fee Required
                       </p>
-                      <p className="text-xs text-blue-700">
-                        You'll be redirected to secure payment after submitting this form.
+                      <p className="text-xs text-yellow-700">
+                        You've reached your free listing limit. Additional listings cost ${additionalListingCost}.
                       </p>
                     </div>
                   </div>
