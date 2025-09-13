@@ -176,6 +176,30 @@ export function AdminDashboard() {
     }
   };
 
+  const handleMakeFeatured = async (listingId: string) => {
+    try {
+      await updateListing(listingId, { 
+        is_featured: true, 
+        listing_type: 'featured' 
+      } as any);
+      queryClient.invalidateQueries('admin-listings');
+    } catch (error) {
+      console.error('Error making listing featured:', error);
+    }
+  };
+
+  const handleRemoveFeatured = async (listingId: string) => {
+    try {
+      await updateListing(listingId, { 
+        is_featured: false, 
+        listing_type: 'free' 
+      } as any);
+      queryClient.invalidateQueries('admin-listings');
+    } catch (error) {
+      console.error('Error removing featured status:', error);
+    }
+  };
+
   const handleSendEmail = async () => {
     if (!emailSubject.trim() || !emailMessage.trim()) {
       alert('Please fill in both subject and message');
@@ -927,6 +951,27 @@ export function AdminDashboard() {
                             <TrashIcon className="h-4 w-4 mr-1" />
                             Delete
                           </button>
+                          {listing.is_featured ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveFeatured(listing.id);
+                              }}
+                              className="inline-flex items-center px-3 py-1 border border-yellow-300 text-sm font-medium rounded-md text-yellow-700 bg-white hover:bg-yellow-50"
+                            >
+                              Remove Featured
+                            </button>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMakeFeatured(listing.id);
+                              }}
+                              className="inline-flex items-center px-3 py-1 border border-blue-300 text-sm font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50"
+                            >
+                              Make Featured
+                            </button>
+                          )}
                           <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
@@ -1328,6 +1373,27 @@ export function AdminDashboard() {
                       >
                         {selectedListing.is_active ? 'Deactivate' : 'Reject'} Listing
                       </button>
+                      {selectedListing.is_featured ? (
+                        <button 
+                          onClick={() => {
+                            handleRemoveFeatured(selectedListing.id);
+                            setShowListingDetailModal(false);
+                          }}
+                          className="w-full px-4 py-2 text-sm font-medium text-yellow-700 bg-white border border-yellow-300 rounded-md hover:bg-yellow-50"
+                        >
+                          Remove Featured Status
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => {
+                            handleMakeFeatured(selectedListing.id);
+                            setShowListingDetailModal(false);
+                          }}
+                          className="w-full px-4 py-2 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md hover:bg-blue-50"
+                        >
+                          Make Featured
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

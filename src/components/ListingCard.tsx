@@ -34,25 +34,24 @@ export function ListingCard({
   };
 
   const getVariantStyles = () => {
-    switch (variant) {
-      case 'featured':
-        return 'ring-2 ring-blue-500 bg-blue-50/30';
-      case 'promoted':
-        return 'ring-2 ring-yellow-500 bg-gradient-to-br from-yellow-50 to-orange-50';
-      default:
-        return 'hover:shadow-lg';
+    if (variant === 'featured' || listing.is_featured) {
+      return 'ring-2 ring-blue-500 bg-blue-50/30';
     }
+    if (variant === 'promoted' || listing.is_promoted) {
+      return 'ring-2 ring-yellow-500 bg-gradient-to-br from-yellow-50 to-orange-50';
+    }
+    return 'hover:shadow-lg';
   };
 
   const getBadge = () => {
-    if (variant === 'promoted') {
+    if (variant === 'promoted' || listing.is_promoted) {
       return (
         <div className="absolute top-2 left-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
           ⭐ PROMOTED
         </div>
       );
     }
-    if (variant === 'featured') {
+    if (variant === 'featured' || listing.is_featured) {
       return (
         <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
           ✨ FEATURED
