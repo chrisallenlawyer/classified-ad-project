@@ -73,13 +73,19 @@ export function PricingManager({ onClose }: PricingManagerProps) {
 
   const handleEdit = (config: PricingConfig) => {
     setEditingConfig(config);
-    // Handle JSONB values properly
-    let configValue = config.config_value;
-    if (typeof configValue === 'object' && configValue !== null) {
-      configValue = JSON.parse(configValue);
+    // Extract numeric value from config_value (handles both number and object types)
+    let configValue = 0;
+    if (typeof config.config_value === 'number') {
+      configValue = config.config_value;
+    } else if (typeof config.config_value === 'object' && config.config_value !== null) {
+      // For JSONB objects, extract the numeric value
+      configValue = config.config_value;
+    } else {
+      configValue = parseFloat(config.config_value || 0);
     }
+    
     setFormData({
-      config_value: typeof configValue === 'number' ? configValue : parseFloat(configValue || 0),
+      config_value: configValue,
       description: config.description
     });
   };
@@ -190,11 +196,9 @@ export function PricingManager({ onClose }: PricingManagerProps) {
                     ) : (
                       <div className="flex items-center justify-between">
                         <div className="text-2xl font-bold text-primary-600">
-                          ${typeof config.config_value === 'number' 
-                            ? config.config_value.toFixed(2) 
-                            : typeof config.config_value === 'object' 
-                              ? JSON.parse(config.config_value).toFixed(2)
-                              : parseFloat(config.config_value || 0).toFixed(2)}
+                          ${(typeof config.config_value === 'number' 
+                            ? config.config_value 
+                            : parseFloat(config.config_value || 0)).toFixed(2)}
                         </div>
                         <button
                           onClick={() => handleEdit(config)}
