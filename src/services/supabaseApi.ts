@@ -191,7 +191,8 @@ export const getListings = async (options: {
     query = query.eq('condition', options.condition)
   }
   if (options.search) {
-    query = query.or(`title.ilike.%${options.search}%,description.ilike.%${options.search}%,location.ilike.%${options.search}%,category.name.ilike.%${options.search}%`)
+    const searchTerm = `%${options.search}%`
+    query = query.or(`title.ilike.${searchTerm},description.ilike.${searchTerm},location.ilike.${searchTerm}`)
   }
   if (options.zip_code && options.radius) {
     query = query.ilike('zip_code', `%${options.zip_code}%`) // Simple match for now
