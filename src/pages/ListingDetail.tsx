@@ -4,6 +4,7 @@ import { getListingById, incrementListingViews } from '../services/supabaseApi';
 import { Listing } from '../services/supabaseApi';
 import { ContactSellerForm } from '../components/ContactSellerForm';
 import { WatchButton } from '../components/WatchButton';
+import { ShareButton } from '../components/ShareButton';
 import { useAuth } from '../contexts/AuthContext';
 import SEOHead from '../components/SEOHead';
 import { generateListingStructuredData, generateKeywords } from '../utils/seo';
@@ -208,7 +209,10 @@ const ListingDetail: React.FC = () => {
                     <span className="text-3xl font-bold text-indigo-600">
                       {formatPrice(listing.price)}
                     </span>
-                    <WatchButton listingId={listing.id} size="lg" showText={true} />
+                    <div className="flex items-center space-x-2">
+                      <ShareButton listing={listing} variant="button" size="lg" />
+                      <WatchButton listingId={listing.id} size="lg" showText={true} />
+                    </div>
                   </div>
                 </div>
                 
