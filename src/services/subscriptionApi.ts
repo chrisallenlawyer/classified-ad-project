@@ -625,7 +625,9 @@ export const subscriptionApi = {
       let featuredListingsUsed = 0;
       let vehicleListingsUsed = 0;
 
-      listings?.forEach(listing => {
+      // Create a copy to avoid readonly property issues
+      const listingsCopy = listings ? [...listings] : [];
+      listingsCopy.forEach(listing => {
         // Check if this was a free listing (no fee charged)
         const wasFree = !listing.listing_fee || listing.listing_fee === 0;
         
@@ -691,7 +693,9 @@ export const subscriptionApi = {
     if (error) throw error;
     
     const config: Record<string, any> = {};
-    data?.forEach(item => {
+    // Create a copy to avoid readonly property issues
+    const dataCopy = data ? [...data] : [];
+    dataCopy.forEach(item => {
       config[item.config_key] = item.config_value;
     });
     
