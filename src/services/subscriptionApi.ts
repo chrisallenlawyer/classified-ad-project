@@ -483,21 +483,56 @@ export const subscriptionApi = {
 
   // Update user's subscription plan
   async updateUserSubscription(userId: string, planId: string): Promise<UserSubscription> {
-    const { data, error } = await supabase
+    // First, check if user has an existing subscription
+    const { data: existingSubscription, error: fetchError } = await supabase
       .from('user_subscriptions')
-      .update({ 
-        subscription_plan_id: planId,
-        updated_at: new Date().toISOString()
-      })
+      .select('id')
       .eq('user_id', userId)
-      .select(`
-        *,
-        subscription_plan:subscription_plans(*)
-      `)
+      .eq('status', 'active')
       .single();
 
-    if (error) throw error;
-    return data;
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      throw fetchError;
+    }
+
+    if (existingSubscription) {
+      // Update existing subscription
+      const { data, error } = await supabase
+        .from('user_subscriptions')
+        .update({ 
+          plan_id: planId,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .select(`
+          *,
+          subscription_plan:subscription_plans(*)
+        `)
+        .single();
+
+      if (error) throw error;
+      return data;
+    } else {
+      // Create new subscription if none exists
+      const { data, error } = await supabase
+        .from('user_subscriptions')
+        .insert({
+          user_id: userId,
+          plan_id: planId,
+          status: 'active',
+          current_period_start: new Date().toISOString(),
+          current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        })
+        .select(`
+          *,
+          subscription_plan:subscription_plans(*)
+        `)
+        .single();
+
+      if (error) throw error;
+      return data;
+    }
   },
 
   // Get user's current usage for the month (based on actual listing creation dates)
