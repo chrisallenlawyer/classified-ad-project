@@ -206,9 +206,8 @@ export const getListings = async (options: {
 
   // The images are now stored in the images JSONB column
   // Convert the JSONB array to the expected format
-  const listingsWithImages = listings.map(listing => ({
-    ...listing,
-    images: (listing.images || []).map((imageUrl: string, index: number) => ({
+  const listingsWithImages = listings.map(listing => {
+    const images = (listing.images || []).map((imageUrl: string, index: number) => ({
       id: `${listing.id}-${index}`,
       listing_id: listing.id,
       filename: imageUrl.split('/').pop() || '',
@@ -219,7 +218,12 @@ export const getListings = async (options: {
       is_primary: index === 0,
       created_at: listing.created_at
     }))
-  }))
+    
+    return {
+      ...listing,
+      images
+    }
+  })
 
   return listingsWithImages
 }
@@ -274,7 +278,7 @@ export const getListingById = async (id: string): Promise<Listing | null> => {
 
   return {
     ...listing,
-    images: images
+    images
   }
 }
 
