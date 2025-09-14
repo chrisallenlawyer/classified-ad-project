@@ -481,6 +481,25 @@ export const subscriptionApi = {
     }
   },
 
+  // Update user's subscription plan
+  async updateUserSubscription(userId: string, planId: string): Promise<UserSubscription> {
+    const { data, error } = await supabase
+      .from('user_subscriptions')
+      .update({ 
+        subscription_plan_id: planId,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .select(`
+        *,
+        subscription_plan:subscription_plans(*)
+      `)
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
   // Get user's current usage for the month (based on actual listing creation dates)
   async getUserUsage(userId: string): Promise<any> {
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format

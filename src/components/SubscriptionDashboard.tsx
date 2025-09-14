@@ -82,7 +82,7 @@ const SubscriptionDashboard: React.FC = () => {
     try {
       console.log('Upgrading to plan:', selectedPlan.id);
       
-      // For now, show a proper upgrade message with plan details
+      // Show confirmation dialog
       const confirmUpgrade = window.confirm(
         `Upgrade to ${selectedPlan.name}?\n\n` +
         `Price: $${selectedPlan.price_monthly}/month\n` +
@@ -90,15 +90,19 @@ const SubscriptionDashboard: React.FC = () => {
         `• ${selectedPlan.max_listings} listings per month\n` +
         `• ${selectedPlan.max_featured_listings} featured listings\n` +
         `• ${selectedPlan.max_vehicle_listings} vehicle listings\n\n` +
-        `This will be processed through Stripe payment system.`
+        `This will update your subscription immediately.`
       );
       
       if (confirmUpgrade) {
-        // Simulate successful upgrade for now
-        alert(`Subscription upgraded to ${selectedPlan.name}! Payment processing will be implemented with full Stripe integration.`);
+        // Actually update the subscription in the database
+        const updatedSubscription = await subscriptionApi.updateUserSubscription(user.id, selectedPlan.id);
+        
+        console.log('Subscription updated successfully:', updatedSubscription);
+        alert(`Subscription upgraded to ${selectedPlan.name}! Your new limits are now active.`);
+        
         setShowUpgradeModal(false);
         
-        // Refresh subscription data
+        // Refresh subscription data to show the changes
         await loadSubscriptionData();
       }
     } catch (err: any) {
