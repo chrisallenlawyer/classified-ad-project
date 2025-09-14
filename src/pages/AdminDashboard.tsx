@@ -310,6 +310,11 @@ export function AdminDashboard() {
         queryClient.invalidateQueries('admin-categories');
         setIsAddingCategory(false);
         setNewCategory({ name: '', description: '', icon: '📦', isVehicle: false });
+        alert('Category created successfully!');
+      },
+      onError: (error: any) => {
+        console.error('Error creating category:', error);
+        alert('Failed to create category: ' + (error.message || 'Unknown error'));
       }
     }
   );
@@ -321,6 +326,11 @@ export function AdminDashboard() {
       onSuccess: () => {
         queryClient.invalidateQueries('admin-categories');
         setEditingCategory(null);
+        alert('Category updated successfully!');
+      },
+      onError: (error: any) => {
+        console.error('Error updating category:', error);
+        alert('Failed to update category: ' + (error.message || 'Unknown error'));
       }
     }
   );
@@ -331,6 +341,11 @@ export function AdminDashboard() {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('admin-categories');
+        alert('Category deleted successfully!');
+      },
+      onError: (error: any) => {
+        console.error('Error deleting category:', error);
+        alert('Failed to delete category: ' + (error.message || 'Unknown error'));
       }
     }
   );
@@ -338,7 +353,12 @@ export function AdminDashboard() {
   const handleCreateCategory = (e: React.FormEvent) => {
     e.preventDefault();
     if (newCategory.name.trim()) {
-      createCategoryMutation.mutate(newCategory);
+      createCategoryMutation.mutate({
+        name: newCategory.name,
+        description: newCategory.description,
+        icon: newCategory.icon,
+        is_vehicle: newCategory.isVehicle
+      });
     }
   };
 
@@ -347,7 +367,12 @@ export function AdminDashboard() {
     if (editingCategory && editingCategory.name.trim()) {
       updateCategoryMutation.mutate({
         id: editingCategory.id,
-        data: editingCategory
+        data: {
+          name: editingCategory.name,
+          description: editingCategory.description,
+          icon: editingCategory.icon,
+          is_vehicle: editingCategory.isVehicle
+        }
       });
     }
   };
@@ -361,7 +386,7 @@ export function AdminDashboard() {
   const toggleCategoryStatus = (category: Category) => {
     updateCategoryMutation.mutate({
       id: category.id,
-      data: { ...category, is_active: !category.is_active }
+      data: { is_active: !category.is_active }
     });
   };
 

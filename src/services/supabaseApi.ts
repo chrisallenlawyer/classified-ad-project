@@ -100,7 +100,7 @@ export const getCategories = async (): Promise<Category[]> => {
   return data || []
 }
 
-export const createCategory = async (categoryData: { name: string; description?: string; icon?: string }): Promise<Category> => {
+export const createCategory = async (categoryData: { name: string; description?: string; icon?: string; is_vehicle?: boolean }): Promise<Category> => {
   const { data, error } = await supabase
     .from('categories')
     .insert([categoryData])
@@ -115,7 +115,7 @@ export const createCategory = async (categoryData: { name: string; description?:
   return data
 }
 
-export const updateCategory = async (id: string, categoryData: { name?: string; description?: string; icon?: string }): Promise<Category> => {
+export const updateCategory = async (id: string, categoryData: { name?: string; description?: string; icon?: string; is_vehicle?: boolean }): Promise<Category> => {
   const { data, error } = await supabase
     .from('categories')
     .update(categoryData)
