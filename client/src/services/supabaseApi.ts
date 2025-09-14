@@ -154,6 +154,7 @@ export const getListings = async (options: {
   sort?: 'created_at' | 'price' | 'view_count' | 'title'
   order?: 'asc' | 'desc'
 } = {}): Promise<Listing[]> => {
+  console.log('🔍 getListings called with options:', options)
   let query = supabase
     .from('listings')
     .select(`
@@ -200,35 +201,47 @@ export const getListings = async (options: {
     throw error
   }
 
+  console.log('📊 Raw listings from Supabase:', listings?.length || 0, 'items')
+
   if (!listings || listings.length === 0) {
     return []
   }
 
   // The images are now stored in the images JSONB column
   // Convert the JSONB array to the expected format
-  const listingsWithImages = listings.map(listing => {
-    // Create a safe copy of the listing object
-    const safeListing = JSON.parse(JSON.stringify(listing))
-    
-    const images = (safeListing.images || []).map((imageUrl: string, index: number) => ({
-      id: `${safeListing.id}-${index}`,
-      listing_id: safeListing.id,
-      filename: imageUrl.split('/').pop() || '',
-      original_name: imageUrl.split('/').pop() || '',
-      mime_type: 'image/jpeg', // Default, could be improved
-      size: 0, // Default, could be improved
-      path: imageUrl,
-      is_primary: index === 0,
-      created_at: safeListing.created_at
-    }))
-    
-    return {
-      ...safeListing,
-      images
-    }
-  })
+  console.log('🔄 Processing listings with images...')
+  
+  try {
+    const listingsWithImages = listings.map((listing, index) => {
+      console.log(`Processing listing ${index + 1}/${listings.length}:`, listing.id)
+      
+      // Create a safe copy of the listing object
+      const safeListing = JSON.parse(JSON.stringify(listing))
+      
+      const images = (safeListing.images || []).map((imageUrl: string, imgIndex: number) => ({
+        id: `${safeListing.id}-${imgIndex}`,
+        listing_id: safeListing.id,
+        filename: imageUrl.split('/').pop() || '',
+        original_name: imageUrl.split('/').pop() || '',
+        mime_type: 'image/jpeg', // Default, could be improved
+        size: 0, // Default, could be improved
+        path: imageUrl,
+        is_primary: imgIndex === 0,
+        created_at: safeListing.created_at
+      }))
+      
+      return {
+        ...safeListing,
+        images
+      }
+    })
 
-  return listingsWithImages
+    console.log('✅ Successfully processed all listings')
+    return listingsWithImages
+  } catch (error) {
+    console.error('❌ Error processing listings:', error)
+    throw error
+  }
 }
 
 export const getFeaturedListings = async (limit: number = 6): Promise<Listing[]> => {
