@@ -303,8 +303,8 @@ export const createListing = async (listingData: CreateListingData, user?: any):
     expires_at: expiresAt,
     listing_type: listingData.listing_type || 'free',
     listing_fee: listingData.listing_fee || 0,
-    is_featured: listingData.listing_type === 'featured',
-    is_promoted: listingData.listing_type === 'promoted'
+    is_featured: listingData.is_featured || false,
+    is_promoted: listingData.is_promoted || false
   }
 
   console.log('Inserting listing data:', insertData)
