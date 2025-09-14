@@ -127,6 +127,24 @@ This backup represents **months of development work** including:
 **Fallback**: Use `STABLE-BACKUP-20250914` tag to restore  
 **Status**: 🟢 **STABLE & PRODUCTION READY**
 
+## 🔄 **RECENT UPDATES (September 14, 2025)**
+
+### ✅ **Search & Admin Features Implemented**
+- **Search Upgrades**: Hero section categories, advanced search link, server-side filtering
+- **Admin Category Management**: Change listing categories, fixed add/edit/delete functionality
+- **Homepage Categories**: Fixed bottom categories to navigate to filtered search results
+
+### ⚠️ **KNOWN ISSUE - Search Query Syntax**
+- **Problem**: Search queries fail with "failed to parse logic tree" error
+- **Status**: In progress - Supabase `or` clause syntax needs correction
+- **Impact**: Search functionality not working properly
+- **Next**: Fix search query syntax in `src/services/supabaseApi.ts`
+
+### 📋 **Current Status**
+- **Stable Backup**: `STABLE-BACKUP-20250914` (all core functionality working)
+- **Latest Commit**: `420a1e3` (search syntax fix attempt)
+- **Deployment**: Ready for manual deployment after search fix
+
 ---
 *Created: September 14, 2025*  
 *Last Updated: September 14, 2025*  
