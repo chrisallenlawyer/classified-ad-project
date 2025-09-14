@@ -151,6 +151,11 @@ export const getListings = async (options: {
   search?: string
   featured?: boolean
   promoted?: boolean
+  min_price?: number
+  max_price?: number
+  zip_code?: string
+  radius?: number
+  condition?: string
   sort?: 'created_at' | 'price' | 'view_count' | 'title'
   order?: 'asc' | 'desc'
 } = {}): Promise<Listing[]> => {
@@ -176,8 +181,20 @@ export const getListings = async (options: {
     query = query.eq('is_promoted', true)
   }
 
+  if (options.min_price !== undefined) {
+    query = query.gte('price', options.min_price)
+  }
+  if (options.max_price !== undefined) {
+    query = query.lte('price', options.max_price)
+  }
+  if (options.condition) {
+    query = query.eq('condition', options.condition)
+  }
   if (options.search) {
-    query = query.or(`title.ilike.%${options.search}%,description.ilike.%${options.search}%,location.ilike.%${options.search}%`)
+    query = query.or(`title.ilike.%${options.search}%,description.ilike.%${options.search}%,location.ilike.%${options.search}%,category.name.ilike.%${options.search}%`)
+  }
+  if (options.zip_code && options.radius) {
+    query = query.ilike('zip_code', `%${options.zip_code}%`) // Simple match for now
   }
 
   // Apply sorting

@@ -24,8 +24,8 @@ export function HeroSection() {
     }
   };
 
-  const handleCategorySearch = (categoryName: string) => {
-    navigate(`/search?q=${encodeURIComponent(categoryName)}`);
+  const handleCategorySearch = (categoryId: string) => {
+    navigate(`/search?category=${categoryId}`);
   };
 
   return (
@@ -73,6 +73,16 @@ export function HeroSection() {
                 Search
               </button>
             </form>
+            
+            {/* Advanced Search Link */}
+            <div className="text-center mt-4">
+              <Link
+                to="/search"
+                className="text-primary-100 hover:text-white text-sm font-medium underline decoration-dotted underline-offset-4 transition-colors duration-200"
+              >
+                Advanced Search
+              </Link>
+            </div>
           </div>
 
           {/* Quick Category Search */}
@@ -83,7 +93,7 @@ export function HeroSection() {
                 {categories.slice(0, 8).map((category: any) => (
                   <button
                     key={category.id}
-                    onClick={() => handleCategorySearch(category.name)}
+                    onClick={() => handleCategorySearch(category.id)}
                     className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-sm font-medium transition-colors duration-200 backdrop-blur-sm border border-white/20"
                   >
                     {category.icon} {category.name}

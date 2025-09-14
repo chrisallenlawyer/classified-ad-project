@@ -11,24 +11,39 @@ const SearchPage: React.FC = () => {
     category: '',
     minPrice: '',
     maxPrice: '',
-    location: '',
+    zipCode: '',
+    radius: '25', // Default radius
     condition: '',
     featured: false,
     promoted: false
   });
 
   const query = searchParams.get('q') || '';
+  const categoryParam = searchParams.get('category') || '';
   const sort = searchParams.get('sort') || 'created_at';
   const order = searchParams.get('order') || 'desc';
 
   // Get categories for the filter dropdown
   const { data: categories } = useQuery('categories', getCategories);
 
+  // Initialize filters from URL parameters
+  useEffect(() => {
+    setSearchQuery(query);
+    if (categoryParam) {
+      setFilters(prev => ({ ...prev, category: categoryParam }));
+    }
+  }, [query, categoryParam]);
+
   const { data: allListings, isLoading, error } = useQuery(
     ['search', query, filters, sort, order],
     () => getListings({
       search: query,
       category_id: filters.category || undefined,
+      min_price: filters.minPrice ? parseFloat(filters.minPrice) : undefined,
+      max_price: filters.maxPrice ? parseFloat(filters.maxPrice) : undefined,
+      zip_code: filters.zipCode || undefined,
+      radius: filters.zipCode ? parseInt(filters.radius) : undefined,
+      condition: filters.condition || undefined,
       sort: sort as any,
       order: order as any,
       featured: filters.featured || undefined,
@@ -39,36 +54,8 @@ const SearchPage: React.FC = () => {
     }
   );
 
-  // Client-side filtering for category name search
-  const listings = useMemo(() => {
-    if (!allListings) return [];
-    
-    let filtered = allListings;
-    
-    // Filter by category name if searching for category terms
-    if (query && query.trim() && categories) {
-      const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 0);
-      filtered = filtered.filter(listing => {
-        // Check if any search term matches a category name
-        const categoryMatch = categories.some((category: any) => 
-          searchTerms.some(term => 
-            category.name.toLowerCase().includes(term)
-          )
-        );
-        
-        // Check if listing title/description/location matches
-        const contentMatch = searchTerms.some(term =>
-          listing.title.toLowerCase().includes(term) ||
-          listing.description.toLowerCase().includes(term) ||
-          listing.location.toLowerCase().includes(term)
-        );
-        
-        return categoryMatch || contentMatch;
-      });
-    }
-    
-    return filtered;
-  }, [allListings, query, categories]);
+  // Use listings directly from API (server-side filtering)
+  const listings = allListings || [];
 
   useEffect(() => {
     setSearchQuery(query);
@@ -90,7 +77,8 @@ const SearchPage: React.FC = () => {
       category: '',
       minPrice: '',
       maxPrice: '',
-      location: '',
+      zipCode: '',
+      radius: '25',
       condition: '',
       featured: false,
       promoted: false
@@ -216,6 +204,32 @@ const SearchPage: React.FC = () => {
                       className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     />
                   </div>
+                </div>
+
+                {/* Zipcode and Radius */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Zipcode</label>
+                  <input 
+                    type="text" 
+                    placeholder="Enter zipcode" 
+                    value={filters.zipCode} 
+                    onChange={(e) => handleFilterChange('zipCode', e.target.value)} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Search Radius (miles)</label>
+                  <select 
+                    value={filters.radius} 
+                    onChange={(e) => handleFilterChange('radius', e.target.value)} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  >
+                    <option value="5">5 miles</option>
+                    <option value="10">10 miles</option>
+                    <option value="25">25 miles</option>
+                    <option value="50">50 miles</option>
+                    <option value="100">100 miles</option>
+                  </select>
                 </div>
 
                 {/* Condition Filter */}

@@ -79,6 +79,11 @@ export function AdminDashboard() {
 
   // Admin features state
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  
+  // Category change state
+  const [showCategoryChangeModal, setShowCategoryChangeModal] = useState(false);
+  const [selectedListingForCategoryChange, setSelectedListingForCategoryChange] = useState<any>(null);
+  const [newCategoryId, setNewCategoryId] = useState('');
   const [emailSubject, setEmailSubject] = useState('');
   const [emailMessage, setEmailMessage] = useState('');
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -199,6 +204,29 @@ export function AdminDashboard() {
       queryClient.invalidateQueries('admin-listings');
     } catch (error) {
       console.error('Error removing featured status:', error);
+    }
+  };
+
+  const handleChangeCategory = (listing: any) => {
+    setSelectedListingForCategoryChange(listing);
+    setNewCategoryId(listing.category_id);
+    setShowCategoryChangeModal(true);
+  };
+
+  const handleConfirmCategoryChange = async () => {
+    if (!selectedListingForCategoryChange || !newCategoryId) return;
+
+    try {
+      await updateListing(selectedListingForCategoryChange.id, {
+        category_id: newCategoryId
+      } as any);
+      queryClient.invalidateQueries('admin-listings');
+      setShowCategoryChangeModal(false);
+      setSelectedListingForCategoryChange(null);
+      setNewCategoryId('');
+    } catch (error) {
+      console.error('Error changing category:', error);
+      alert('Failed to change category. Please try again.');
     }
   };
 
@@ -969,6 +997,18 @@ export function AdminDashboard() {
                             <TrashIcon className="h-4 w-4 mr-1" />
                             Delete
                           </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleChangeCategory(listing);
+                            }}
+                            className="inline-flex items-center px-3 py-1 border border-blue-300 text-sm font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50"
+                          >
+                            <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                            </svg>
+                            Change Category
+                          </button>
                           {listing.is_featured ? (
                             <button
                               onClick={(e) => {
@@ -1424,6 +1464,76 @@ export function AdminDashboard() {
       {/* Pricing Manager Modal */}
       {showPricingManager && (
         <PricingManager onClose={() => setShowPricingManager(false)} />
+      )}
+
+      {/* Category Change Modal */}
+      {showCategoryChangeModal && selectedListingForCategoryChange && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Change Category</h3>
+              <button
+                onClick={() => {
+                  setShowCategoryChangeModal(false);
+                  setSelectedListingForCategoryChange(null);
+                  setNewCategoryId('');
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">
+                  Change category for: <strong>{selectedListingForCategoryChange.title}</strong>
+                </p>
+                <p className="text-sm text-gray-500">
+                  Current category: <span className="font-medium">{selectedListingForCategoryChange.category?.name || 'Unknown'}</span>
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  New Category
+                </label>
+                <select
+                  value={newCategoryId}
+                  onChange={(e) => setNewCategoryId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="">Select a category</option>
+                  {categories?.map((category: any) => (
+                    <option key={category.id} value={category.id}>
+                      {category.icon} {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => {
+                    setShowCategoryChangeModal(false);
+                    setSelectedListingForCategoryChange(null);
+                    setNewCategoryId('');
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmCategoryChange}
+                  disabled={!newCategoryId}
+                  className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Change Category
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
