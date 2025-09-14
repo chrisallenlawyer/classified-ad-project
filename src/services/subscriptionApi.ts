@@ -816,5 +816,52 @@ export const subscriptionApi = {
     } catch (error) {
       console.error('Error resetting user usage:', error);
     }
+  },
+
+  // Get effective limits for a user (respects paid term for cancelled subscriptions)
+  async getEffectiveLimits(userId: string): Promise<{
+    freeLimit: number;
+    maxFeaturedInFree: number;
+    maxVehicleInFree: number;
+    isWithinPaidTerm: boolean;
+  }> {
+    try {
+      const subscription = await this.getUserSubscription(userId);
+      
+      // Default free plan limits
+      let freeLimit = 5;
+      let maxFeaturedInFree = 1;
+      let maxVehicleInFree = 1;
+      let isWithinPaidTerm = false;
+      
+      if (subscription?.subscription_plan) {
+        // Check if subscription is active OR cancelled but still within paid term
+        const now = new Date();
+        const periodEnd = new Date(subscription.current_period_end);
+        isWithinPaidTerm = now < periodEnd;
+        
+        if (subscription.status === 'active' || (subscription.status === 'cancelled' && isWithinPaidTerm)) {
+          // User gets full benefits of their current plan until term expires
+          freeLimit = subscription.subscription_plan.max_listings || 5;
+          maxFeaturedInFree = subscription.subscription_plan.max_featured_listings || 1;
+          maxVehicleInFree = subscription.subscription_plan.max_vehicle_listings || 1;
+        }
+      }
+      
+      return {
+        freeLimit,
+        maxFeaturedInFree,
+        maxVehicleInFree,
+        isWithinPaidTerm
+      };
+    } catch (error) {
+      console.error('Error getting effective limits:', error);
+      return {
+        freeLimit: 5,
+        maxFeaturedInFree: 1,
+        maxVehicleInFree: 1,
+        isWithinPaidTerm: false
+      };
+    }
   }
 };

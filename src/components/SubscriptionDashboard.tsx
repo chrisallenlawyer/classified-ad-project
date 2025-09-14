@@ -22,6 +22,7 @@ const SubscriptionDashboard: React.FC = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [usage, setUsage] = useState<any>(null);
   const [pricingConfig, setPricingConfig] = useState<any>({});
+  const [effectiveLimits, setEffectiveLimits] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -54,12 +55,13 @@ const SubscriptionDashboard: React.FC = () => {
     
     try {
       setLoading(true);
-      const [subscriptionData, plansData, paymentsData, usageData, pricingData] = await Promise.all([
+      const [subscriptionData, plansData, paymentsData, usageData, pricingData, limitsData] = await Promise.all([
         subscriptionApi.getUserSubscription(user.id),
         subscriptionApi.getActiveSubscriptionPlans(),
         subscriptionApi.getUserPayments(user.id),
         subscriptionApi.getUserUsage(user.id),
-        subscriptionApi.getPricingConfig()
+        subscriptionApi.getPricingConfig(),
+        subscriptionApi.getEffectiveLimits(user.id)
       ]);
       
       setSubscription(subscriptionData);
@@ -67,6 +69,7 @@ const SubscriptionDashboard: React.FC = () => {
       setPayments(paymentsData);
       setUsage(usageData);
       setPricingConfig(pricingData);
+      setEffectiveLimits(limitsData);
     } catch (err: any) {
       console.error('Error loading subscription data:', err);
       setError(err.message || 'Failed to load subscription data');
@@ -340,8 +343,8 @@ const SubscriptionDashboard: React.FC = () => {
                       <span className="text-sm text-gray-600">Free Listings</span>
                     </div>
                     <div className="text-sm font-medium">
-                      {usage.free_listings_used || 0} / {subscription?.subscription_plan?.max_listings || 5}
-                      {subscription?.status === 'cancelled' && (
+                      {usage.free_listings_used || 0} / {effectiveLimits?.freeLimit || 5}
+                      {subscription?.status === 'cancelled' && effectiveLimits?.isWithinPaidTerm && (
                         <span className="text-orange-600 text-xs ml-1">(keeping until {formatDate(subscription.current_period_end)})</span>
                       )}
                     </div>
@@ -349,7 +352,7 @@ const SubscriptionDashboard: React.FC = () => {
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
                       className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${getUsagePercentage(usage.free_listings_used || 0, subscription?.subscription_plan?.max_listings || 5)}%` }}
+                      style={{ width: `${getUsagePercentage(usage.free_listings_used || 0, effectiveLimits?.freeLimit || 5)}%` }}
                     ></div>
                   </div>
                 </div>
@@ -361,8 +364,8 @@ const SubscriptionDashboard: React.FC = () => {
                       <span className="text-sm text-gray-600">Featured Listings</span>
                     </div>
                     <div className="text-sm font-medium">
-                      {usage.featured_listings_used || 0} / {subscription?.subscription_plan?.max_featured_listings || 0}
-                      {subscription?.status === 'cancelled' && (
+                      {usage.featured_listings_used || 0} / {effectiveLimits?.maxFeaturedInFree || 0}
+                      {subscription?.status === 'cancelled' && effectiveLimits?.isWithinPaidTerm && (
                         <span className="text-orange-600 text-xs ml-1">(keeping until {formatDate(subscription.current_period_end)})</span>
                       )}
                     </div>
@@ -370,7 +373,7 @@ const SubscriptionDashboard: React.FC = () => {
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
                       className="bg-yellow-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${getUsagePercentage(usage.featured_listings_used || 0, subscription?.subscription_plan?.max_featured_listings || 0)}%` }}
+                      style={{ width: `${getUsagePercentage(usage.featured_listings_used || 0, effectiveLimits?.maxFeaturedInFree || 0)}%` }}
                     ></div>
                   </div>
                 </div>
@@ -382,8 +385,8 @@ const SubscriptionDashboard: React.FC = () => {
                       <span className="text-sm text-gray-600">Vehicle Listings</span>
                     </div>
                     <div className="text-sm font-medium">
-                      {usage.vehicle_listings_used || 0} / {subscription?.subscription_plan?.max_vehicle_listings || 0}
-                      {subscription?.status === 'cancelled' && (
+                      {usage.vehicle_listings_used || 0} / {effectiveLimits?.maxVehicleInFree || 0}
+                      {subscription?.status === 'cancelled' && effectiveLimits?.isWithinPaidTerm && (
                         <span className="text-orange-600 text-xs ml-1">(keeping until {formatDate(subscription.current_period_end)})</span>
                       )}
                     </div>
@@ -391,7 +394,7 @@ const SubscriptionDashboard: React.FC = () => {
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
                       className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${getUsagePercentage(usage.vehicle_listings_used || 0, subscription?.subscription_plan?.max_vehicle_listings || 0)}%` }}
+                      style={{ width: `${getUsagePercentage(usage.vehicle_listings_used || 0, effectiveLimits?.maxVehicleInFree || 0)}%` }}
                     ></div>
                   </div>
                 </div>
