@@ -169,19 +169,7 @@ const SearchPage: React.FC = () => {
                   </select>
                 </div>
 
-                {/* Location Filter */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Location
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter location"
-                    value={filters.location}
-                    onChange={(e) => handleFilterChange('location', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  />
-                </div>
+                {/* Location Filter - Removed since we use zipcode instead */}
 
                 {/* Price Range */}
                 <div>
