@@ -207,20 +207,23 @@ export const getListings = async (options: {
   // The images are now stored in the images JSONB column
   // Convert the JSONB array to the expected format
   const listingsWithImages = listings.map(listing => {
-    const images = (listing.images || []).map((imageUrl: string, index: number) => ({
-      id: `${listing.id}-${index}`,
-      listing_id: listing.id,
+    // Create a safe copy of the listing object
+    const safeListing = JSON.parse(JSON.stringify(listing))
+    
+    const images = (safeListing.images || []).map((imageUrl: string, index: number) => ({
+      id: `${safeListing.id}-${index}`,
+      listing_id: safeListing.id,
       filename: imageUrl.split('/').pop() || '',
       original_name: imageUrl.split('/').pop() || '',
       mime_type: 'image/jpeg', // Default, could be improved
       size: 0, // Default, could be improved
       path: imageUrl,
       is_primary: index === 0,
-      created_at: listing.created_at
+      created_at: safeListing.created_at
     }))
     
     return {
-      ...listing,
+      ...safeListing,
       images
     }
   })
@@ -264,20 +267,22 @@ export const getListingById = async (id: string): Promise<Listing | null> => {
 
   // The images are now stored in the images JSONB column
   // Convert the JSONB array to the expected format
-  const images = (listing.images || []).map((imageUrl: string, index: number) => ({
-    id: `${listing.id}-${index}`,
-    listing_id: listing.id,
+  const safeListing = JSON.parse(JSON.stringify(listing))
+  
+  const images = (safeListing.images || []).map((imageUrl: string, index: number) => ({
+    id: `${safeListing.id}-${index}`,
+    listing_id: safeListing.id,
     filename: imageUrl.split('/').pop() || '',
     original_name: imageUrl.split('/').pop() || '',
     mime_type: 'image/jpeg', // Default, could be improved
     size: 0, // Default, could be improved
     path: imageUrl,
     is_primary: index === 0,
-    created_at: listing.created_at
+    created_at: safeListing.created_at
   }))
 
   return {
-    ...listing,
+    ...safeListing,
     images
   }
 }
@@ -582,9 +587,10 @@ export const getUserFavorites = async (): Promise<Listing[]> => {
 
   // Combine listings with their images
   return listings.map(listing => {
-    const listingImages = images?.filter(img => img.listing_id === listing.id) || []
+    const safeListing = JSON.parse(JSON.stringify(listing))
+    const listingImages = images?.filter(img => img.listing_id === safeListing.id) || []
     return {
-      ...listing,
+      ...safeListing,
       images: listingImages
     }
   })
@@ -630,9 +636,10 @@ export const getUserListings = async (): Promise<Listing[]> => {
 
   // Combine listings with their images
   return data.map(listing => {
-    const listingImages = images?.filter(img => img.listing_id === listing.id) || []
+    const safeListing = JSON.parse(JSON.stringify(listing))
+    const listingImages = images?.filter(img => img.listing_id === safeListing.id) || []
     return {
-      ...listing,
+      ...safeListing,
       images: listingImages
     }
   })
