@@ -26,6 +26,10 @@ const SubscriptionDashboard: React.FC = () => {
   const [error, setError] = useState('');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showDowngradeModal, setShowDowngradeModal] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [downgrading, setDowngrading] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -108,6 +112,56 @@ const SubscriptionDashboard: React.FC = () => {
     } catch (err: any) {
       console.error('Error upgrading subscription:', err);
       setError(err.message || 'Failed to upgrade subscription');
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!user || !subscription) return;
+
+    try {
+      setCancelling(true);
+      const cancelledSubscription = await subscriptionApi.cancelUserSubscription(user.id);
+      console.log('Subscription cancelled successfully:', cancelledSubscription);
+      alert('Your subscription has been cancelled. You will continue to have access to your current plan benefits until the end of your billing period.');
+      setShowCancelModal(false);
+      await loadSubscriptionData();
+    } catch (error) {
+      console.error('Error cancelling subscription:', error);
+      alert('Failed to cancel subscription. Please try again.');
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const handleDowngradeSubscription = async () => {
+    if (!user || !selectedPlan) return;
+
+    try {
+      setDowngrading(true);
+      const downgradedSubscription = await subscriptionApi.downgradeUserSubscription(user.id, selectedPlan.id);
+      console.log('Subscription downgraded successfully:', downgradedSubscription);
+      alert(`Your subscription has been downgraded to ${selectedPlan.name}. You will continue to have access to your current plan benefits until the end of your billing period, then switch to the ${selectedPlan.name} plan.`);
+      setShowDowngradeModal(false);
+      await loadSubscriptionData();
+    } catch (error) {
+      console.error('Error downgrading subscription:', error);
+      alert('Failed to downgrade subscription. Please try again.');
+    } finally {
+      setDowngrading(false);
+    }
+  };
+
+  const handleReactivateSubscription = async () => {
+    if (!user || !subscription) return;
+
+    try {
+      const reactivatedSubscription = await subscriptionApi.reactivateUserSubscription(user.id);
+      console.log('Subscription reactivated successfully:', reactivatedSubscription);
+      alert('Your subscription has been reactivated! You will continue to be billed for this plan.');
+      await loadSubscriptionData();
+    } catch (error) {
+      console.error('Error reactivating subscription:', error);
+      alert('Failed to reactivate subscription. Please try again.');
     }
   };
 
@@ -214,9 +268,39 @@ const SubscriptionDashboard: React.FC = () => {
                 
                 <div className="text-sm text-gray-600">
                   <div>Next billing: {formatDate(subscription.current_period_end)}</div>
-                  {subscription.cancel_at_period_end && (
+                  {subscription.status === 'cancelled' && (
                     <div className="text-red-600 mt-1">Cancels at period end</div>
                   )}
+                </div>
+                
+                {/* Subscription Action Buttons */}
+                <div className="pt-4 border-t border-gray-200">
+                  <div className="flex flex-wrap gap-2">
+                    {subscription.status === 'active' && (
+                      <>
+                        <button
+                          onClick={() => setShowCancelModal(true)}
+                          className="px-3 py-1 text-sm text-red-600 border border-red-300 rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        >
+                          Cancel Subscription
+                        </button>
+                        <button
+                          onClick={() => setShowDowngradeModal(true)}
+                          className="px-3 py-1 text-sm text-orange-600 border border-orange-300 rounded-md hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        >
+                          Downgrade Plan
+                        </button>
+                      </>
+                    )}
+                    {subscription.status === 'cancelled' && (
+                      <button
+                        onClick={handleReactivateSubscription}
+                        className="px-3 py-1 text-sm text-green-600 border border-green-300 rounded-md hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      >
+                        Reactivate Subscription
+                      </button>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="pt-4 border-t border-gray-200">
@@ -520,6 +604,95 @@ const SubscriptionDashboard: React.FC = () => {
                     Upgrade Now
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cancel Subscription Modal */}
+        {showCancelModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <div className="flex items-center mb-4">
+                <ExclamationTriangleIcon className="h-6 w-6 text-red-600 mr-2" />
+                <h3 className="text-lg font-semibold text-gray-900">Cancel Subscription</h3>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-gray-600 mb-4">
+                  Are you sure you want to cancel your subscription? You will continue to have access to your current plan benefits until <strong>{subscription?.current_period_end ? formatDate(subscription.current_period_end) : 'the end of your billing period'}</strong>.
+                </p>
+                <p className="text-sm text-gray-500">
+                  After that, you'll be moved to the free plan and will lose access to premium features.
+                </p>
+              </div>
+              
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowCancelModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                >
+                  Keep Subscription
+                </button>
+                <button
+                  onClick={handleCancelSubscription}
+                  disabled={cancelling}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
+                >
+                  {cancelling ? 'Cancelling...' : 'Cancel Subscription'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Downgrade Subscription Modal */}
+        {showDowngradeModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <div className="flex items-center mb-4">
+                <ExclamationTriangleIcon className="h-6 w-6 text-orange-600 mr-2" />
+                <h3 className="text-lg font-semibold text-gray-900">Downgrade Plan</h3>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-gray-600 mb-4">
+                  Select a plan to downgrade to. You will continue to have access to your current plan benefits until <strong>{subscription?.current_period_end ? formatDate(subscription.current_period_end) : 'the end of your billing period'}</strong>.
+                </p>
+                
+                <div className="space-y-2">
+                  {plans.filter(plan => plan.id !== subscription?.plan_id).map((plan) => (
+                    <label key={plan.id} className="flex items-center p-3 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="downgradePlan"
+                        value={plan.id}
+                        onChange={() => setSelectedPlan(plan)}
+                        className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300"
+                      />
+                      <div className="ml-3">
+                        <div className="font-medium text-gray-900">{plan.name}</div>
+                        <div className="text-sm text-gray-600">{formatPrice(plan.price_monthly)}/month</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowDowngradeModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                >
+                  Keep Current Plan
+                </button>
+                <button
+                  onClick={handleDowngradeSubscription}
+                  disabled={downgrading || !selectedPlan}
+                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50"
+                >
+                  {downgrading ? 'Downgrading...' : 'Downgrade Plan'}
+                </button>
               </div>
             </div>
           </div>

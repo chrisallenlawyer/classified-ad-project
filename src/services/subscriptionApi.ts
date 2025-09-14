@@ -126,11 +126,11 @@ export const subscriptionApi = {
       .from('user_subscriptions')
       .select(`
         *,
-        subscription_plan:subscription_plans(*)
+        subscription_plan:subscription_plans!plan_id(*)
       `)
       .eq('user_id', userId)
-      .eq('status', 'active')
-      .gte('current_period_end', new Date().toISOString())
+      .in('status', ['active', 'cancelled']) // Include both active and cancelled subscriptions
+      .gte('current_period_end', new Date().toISOString()) // Only if not expired
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
@@ -172,7 +172,7 @@ export const subscriptionApi = {
       })
       .select(`
         *,
-        subscription_plan:subscription_plans(*)
+        subscription_plan:subscription_plans!plan_id(*)
       `)
       .single();
 
@@ -190,7 +190,7 @@ export const subscriptionApi = {
       .from('user_subscriptions')
       .select(`
         *,
-        subscription_plan:subscription_plans(*)
+        subscription_plan:subscription_plans!plan_id(*)
       `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
@@ -507,7 +507,7 @@ export const subscriptionApi = {
         .eq('status', 'active')
         .select(`
           *,
-          subscription_plan:subscription_plans(*)
+          subscription_plan:subscription_plans!plan_id(*)
         `)
         .single();
 
@@ -526,13 +526,77 @@ export const subscriptionApi = {
         })
         .select(`
           *,
-          subscription_plan:subscription_plans(*)
+          subscription_plan:subscription_plans!plan_id(*)
         `)
         .single();
 
       if (error) throw error;
       return data;
     }
+  },
+
+  // Cancel user subscription (keeps benefits until term expires)
+  async cancelUserSubscription(userId: string): Promise<UserSubscription> {
+    const { data, error } = await supabase
+      .from('user_subscriptions')
+      .update({
+        status: 'cancelled',
+        cancelled_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .select(`
+        *,
+        subscription_plan:subscription_plans!plan_id(*)
+      `)
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Downgrade user subscription to a different plan
+  async downgradeUserSubscription(userId: string, newPlanId: string): Promise<UserSubscription> {
+    const { data, error } = await supabase
+      .from('user_subscriptions')
+      .update({
+        plan_id: newPlanId,
+        status: 'cancelled', // Mark as cancelled so it expires at end of term
+        cancelled_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .select(`
+        *,
+        subscription_plan:subscription_plans!plan_id(*)
+      `)
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Reactivate a cancelled subscription
+  async reactivateUserSubscription(userId: string): Promise<UserSubscription> {
+    const { data, error } = await supabase
+      .from('user_subscriptions')
+      .update({
+        status: 'active',
+        cancelled_at: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .eq('status', 'cancelled')
+      .select(`
+        *,
+        subscription_plan:subscription_plans!plan_id(*)
+      `)
+      .single();
+
+    if (error) throw error;
+    return data;
   },
 
   // Get user's current usage for the month (based on actual listing creation dates)
