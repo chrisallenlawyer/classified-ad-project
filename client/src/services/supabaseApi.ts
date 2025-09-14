@@ -581,10 +581,13 @@ export const getUserFavorites = async (): Promise<Listing[]> => {
   }
 
   // Combine listings with their images
-  return listings.map(listing => ({
-    ...listing,
-    images: images?.filter(img => img.listing_id === listing.id) || []
-  }))
+  return listings.map(listing => {
+    const listingImages = images?.filter(img => img.listing_id === listing.id) || []
+    return {
+      ...listing,
+      images: listingImages
+    }
+  })
 }
 
 // User's own listings
@@ -626,10 +629,13 @@ export const getUserListings = async (): Promise<Listing[]> => {
   }
 
   // Combine listings with their images
-  return data.map(listing => ({
-    ...listing,
-    images: images?.filter(img => img.listing_id === listing.id) || []
-  }))
+  return data.map(listing => {
+    const listingImages = images?.filter(img => img.listing_id === listing.id) || []
+    return {
+      ...listing,
+      images: listingImages
+    }
+  })
 }
 
 // Messaging API
