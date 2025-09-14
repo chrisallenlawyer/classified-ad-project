@@ -238,15 +238,33 @@ export const subscriptionApi = {
         vehicle_listings_used: 0
       };
 
-      // Get limits from subscription plan
+      // Get limits from subscription plan - use current plan limits if subscription is active
+      // or if cancelled but still within paid term (user keeps benefits until term expires)
       let freeLimit = 5; // Default free limit
       let maxFeaturedInFree = 1; // Default max featured in free pool
       let maxVehicleInFree = 1; // Default max vehicle in free pool
       
       if (subscription?.subscription_plan) {
-        freeLimit = subscription.subscription_plan.max_listings || 5;
-        maxFeaturedInFree = subscription.subscription_plan.max_featured_listings || 1;
-        maxVehicleInFree = subscription.subscription_plan.max_vehicle_listings || 1;
+        // Check if subscription is active OR cancelled but still within paid term
+        const now = new Date();
+        const periodEnd = new Date(subscription.current_period_end);
+        const isWithinPaidTerm = now < periodEnd;
+        
+        if (subscription.status === 'active' || (subscription.status === 'cancelled' && isWithinPaidTerm)) {
+          // User gets full benefits of their current plan until term expires
+          freeLimit = subscription.subscription_plan.max_listings || 5;
+          maxFeaturedInFree = subscription.subscription_plan.max_featured_listings || 1;
+          maxVehicleInFree = subscription.subscription_plan.max_vehicle_listings || 1;
+          
+          console.log(`API: Using plan limits (${subscription.status}, within term: ${isWithinPaidTerm}):`, {
+            freeLimit,
+            maxFeaturedInFree,
+            maxVehicleInFree
+          });
+        } else {
+          // Subscription expired or cancelled outside paid term - use free plan limits
+          console.log('API: Using free plan limits - subscription expired or outside paid term');
+        }
       }
 
       const freeUsed = currentUsage.free_listings_used || 0;

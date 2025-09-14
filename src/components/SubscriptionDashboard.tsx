@@ -269,7 +269,7 @@ const SubscriptionDashboard: React.FC = () => {
                 <div className="text-sm text-gray-600">
                   <div>Next billing: {formatDate(subscription.current_period_end)}</div>
                   {subscription.status === 'cancelled' && (
-                    <div className="text-red-600 mt-1">Cancels at period end</div>
+                    <div className="text-orange-600 mt-1">Downgrades at period end - you keep current benefits until then</div>
                   )}
                 </div>
                 
@@ -341,6 +341,9 @@ const SubscriptionDashboard: React.FC = () => {
                     </div>
                     <div className="text-sm font-medium">
                       {usage.free_listings_used || 0} / {subscription?.subscription_plan?.max_listings || 5}
+                      {subscription?.status === 'cancelled' && (
+                        <span className="text-orange-600 text-xs ml-1">(keeping until {formatDate(subscription.current_period_end)})</span>
+                      )}
                     </div>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
@@ -359,6 +362,9 @@ const SubscriptionDashboard: React.FC = () => {
                     </div>
                     <div className="text-sm font-medium">
                       {usage.featured_listings_used || 0} / {subscription?.subscription_plan?.max_featured_listings || 0}
+                      {subscription?.status === 'cancelled' && (
+                        <span className="text-orange-600 text-xs ml-1">(keeping until {formatDate(subscription.current_period_end)})</span>
+                      )}
                     </div>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
@@ -377,6 +383,9 @@ const SubscriptionDashboard: React.FC = () => {
                     </div>
                     <div className="text-sm font-medium">
                       {usage.vehicle_listings_used || 0} / {subscription?.subscription_plan?.max_vehicle_listings || 0}
+                      {subscription?.status === 'cancelled' && (
+                        <span className="text-orange-600 text-xs ml-1">(keeping until {formatDate(subscription.current_period_end)})</span>
+                      )}
                     </div>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
