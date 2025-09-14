@@ -76,6 +76,6 @@ open http://localhost:5174/
 ## File Locations
 - **Project root**: `/Volumes/My Passport/Classified Ad Project`
 - **Server code**: `server/src/index.ts`
-- **Frontend code**: `client/src/App.tsx`
+- **Frontend code**: `src/App.tsx`
 - **Database config**: `server/.env`
 - **Database schema**: `server/prisma/schema.prisma`

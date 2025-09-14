@@ -139,8 +139,8 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 - **Port Conflicts**: If ports 3002 or 5174 are in use, change them in:
   - `server/.env` (PORT=3002)
-  - `client/src/services/api.ts` (API_BASE_URL)
-  - `client/vite.config.ts` (proxy target)
+  - `src/services/api.ts` (API_BASE_URL)
+  - `vite.config.ts` (proxy target)
 
 - **Database Issues**: If you get permission errors, run:
 ```bash
@@ -153,9 +153,9 @@ ALTER DATABASE local_classifieds OWNER TO classifieds_user;
 
 - **Server entry**: `server/src/index.ts`
 - **Database schema**: `server/prisma/schema.prisma`
-- **Frontend entry**: `client/src/main.tsx`
-- **Main app**: `client/src/App.tsx`
-- **API service**: `client/src/services/api.ts`
+- **Frontend entry**: `src/main.tsx`
+- **Main app**: `src/App.tsx`
+- **API service**: `src/services/api.ts`
 - **Environment**: `server/.env`
 
 ## Success! 🎉
