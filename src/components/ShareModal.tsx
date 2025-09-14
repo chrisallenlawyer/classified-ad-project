@@ -79,6 +79,21 @@ export function ShareModal({ isOpen, onClose, listing }: ShareModalProps) {
     window.open(url, '_blank', 'width=600,height=400');
   };
 
+  const handleNativeShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: listing.title,
+          text: shareText,
+          url: listingUrl
+        });
+        onClose(); // Close modal after successful share
+      } catch (error) {
+        console.log('Native share cancelled or failed:', error);
+      }
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-screen items-center justify-center p-4">
@@ -179,6 +194,19 @@ export function ShareModal({ isOpen, onClose, listing }: ShareModalProps) {
                 </button>
               </div>
             </div>
+
+            {/* Native Share (if supported) */}
+            {navigator.share && (
+              <div className="mb-6">
+                <button
+                  onClick={handleNativeShare}
+                  className="w-full flex items-center justify-center space-x-2 rounded-lg bg-gray-800 hover:bg-gray-900 px-4 py-3 text-white font-medium transition-colors"
+                >
+                  <span className="text-lg">📱</span>
+                  <span>Share with Device Apps</span>
+                </button>
+              </div>
+            )}
 
             {/* Social Platforms */}
             <div>

@@ -26,21 +26,8 @@ export function ShareButton({
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleShare = () => {
-    // Check if Web Share API is supported
-    if (navigator.share) {
-      navigator.share({
-        title: listing.title,
-        text: `${listing.title} - $${listing.price.toLocaleString()}`,
-        url: `${window.location.origin}/listing/${listing.id}`
-      }).catch((error) => {
-        console.log('Error sharing:', error);
-        // Fallback to modal
-        setIsModalOpen(true);
-      });
-    } else {
-      // Fallback to modal for unsupported browsers
-      setIsModalOpen(true);
-    }
+    // Go directly to modal for consistent user experience
+    setIsModalOpen(true);
   };
 
   const getButtonContent = () => {
