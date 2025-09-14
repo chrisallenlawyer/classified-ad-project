@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { EyeIcon, StarIcon } from '@heroicons/react/24/outline';
 import { Listing } from '../services/supabaseApi';
 import { WatchButton } from './WatchButton';
+import { ShareButton } from './ShareButton';
 
 interface ListingCardProps {
   listing: Listing;
@@ -80,8 +81,9 @@ export function ListingCard({
             </div>
           )}
         
-        {/* Watch button */}
-        <div className="absolute top-2 right-2">
+        {/* Action buttons */}
+        <div className="absolute top-2 right-2 flex space-x-1">
+          <ShareButton listing={listing} variant="icon" size="sm" />
           <WatchButton listingId={listing.id} size="sm" />
         </div>
       </div>

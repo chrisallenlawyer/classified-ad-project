@@ -4,6 +4,7 @@ import { getListingById, incrementListingViews } from '../services/supabaseApi';
 import { Listing } from '../services/supabaseApi';
 import { ContactSellerForm } from '../components/ContactSellerForm';
 import { WatchButton } from '../components/WatchButton';
+import { ShareButton } from '../components/ShareButton';
 import { useAuth } from '../contexts/AuthContext';
 import SEOHead from '../components/SEOHead';
 import { generateListingStructuredData, generateKeywords } from '../utils/seo';
@@ -83,10 +84,12 @@ const ListingDetail: React.FC = () => {
     });
   };
 
-  // Generate SEO data
+  // Generate SEO data with enhanced social media support
+  const socialDescription = `${listing.title} - $${listing.price.toLocaleString()} in ${listing.location}. ${listing.description ? listing.description.substring(0, 100) + '...' : 'Check out this great deal!'}`;
+  
   const seoData = {
-    title: listing.title,
-    description: listing.description || `Find ${listing.title} for sale. ${listing.price ? `Price: $${listing.price}` : 'Contact for price'}. ${listing.location ? `Located in ${listing.location}` : ''}`,
+    title: `${listing.title} - $${listing.price.toLocaleString()}`,
+    description: socialDescription,
     keywords: generateKeywords(listing),
     image: listing.images?.[0]?.path || '/default-listing.jpg',
     url: window.location.href,
@@ -181,7 +184,10 @@ const ListingDetail: React.FC = () => {
                     <span className="text-3xl font-bold text-indigo-600">
                       {formatPrice(listing.price)}
                     </span>
-                    <WatchButton listingId={listing.id} size="lg" showText={true} />
+                    <div className="flex items-center space-x-2">
+                      <ShareButton listing={listing} variant="button" size="lg" />
+                      <WatchButton listingId={listing.id} size="lg" showText={true} />
+                    </div>
                   </div>
                 </div>
                 
