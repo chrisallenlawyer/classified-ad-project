@@ -253,7 +253,7 @@ export const getListings = async (options: {
 
   // The images are now stored in the images JSONB column
   // Convert the JSONB array to the expected format
-  const listingsWithImages = listings.map(listing => ({
+  let listingsWithImages = listings.map(listing => ({
     ...listing,
     images: (listing.images || []).map((imageUrl: string, index: number) => ({
       id: `${listing.id}-${index}`,
