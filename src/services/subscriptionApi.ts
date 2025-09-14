@@ -38,9 +38,11 @@ export interface UserSubscription {
   current_period_end: string;
   cancel_at_period_end: boolean;
   cancelled_at?: string;
+  downgrade_to_plan_id?: string;
   created_at: string;
   updated_at: string;
   subscription_plan?: SubscriptionPlan;
+  downgrade_plan?: SubscriptionPlan;
 }
 
 export interface Payment {
@@ -126,7 +128,8 @@ export const subscriptionApi = {
       .from('user_subscriptions')
       .select(`
         *,
-        subscription_plan:subscription_plans!plan_id(*)
+        subscription_plan:subscription_plans!plan_id(*),
+        downgrade_plan:subscription_plans!downgrade_to_plan_id(*)
       `)
       .eq('user_id', userId)
       .in('status', ['active', 'cancelled']) // Include both active and cancelled subscriptions
@@ -251,19 +254,29 @@ export const subscriptionApi = {
         const isWithinPaidTerm = now < periodEnd;
         
         if (subscription.status === 'active' || (subscription.status === 'cancelled' && isWithinPaidTerm)) {
-          // User gets full benefits of their current plan until term expires
+          // User gets full benefits of their CURRENT plan until term expires
+          // (not the downgrade plan - that's what they'll switch to later)
           freeLimit = subscription.subscription_plan.max_listings || 5;
           maxFeaturedInFree = subscription.subscription_plan.max_featured_listings || 1;
           maxVehicleInFree = subscription.subscription_plan.max_vehicle_listings || 1;
           
-          console.log(`API: Using plan limits (${subscription.status}, within term: ${isWithinPaidTerm}):`, {
+          console.log(`API: Using current plan limits (${subscription.status}, within term: ${isWithinPaidTerm}):`, {
+            currentPlan: subscription.subscription_plan.name,
+            downgradePlan: subscription.downgrade_plan?.name,
             freeLimit,
             maxFeaturedInFree,
             maxVehicleInFree
           });
         } else {
-          // Subscription expired or cancelled outside paid term - use free plan limits
-          console.log('API: Using free plan limits - subscription expired or outside paid term');
+          // Subscription expired - use downgrade plan if available, otherwise free plan limits
+          if (subscription.downgrade_plan) {
+            freeLimit = subscription.downgrade_plan.max_listings || 5;
+            maxFeaturedInFree = subscription.downgrade_plan.max_featured_listings || 1;
+            maxVehicleInFree = subscription.downgrade_plan.max_vehicle_listings || 1;
+            console.log('API: Using downgrade plan after expiry:', subscription.downgrade_plan.name);
+          } else {
+            console.log('API: Using free plan limits - subscription expired and no downgrade plan');
+          }
         }
       }
 
@@ -579,10 +592,11 @@ export const subscriptionApi = {
     const { data, error } = await supabase
       .from('user_subscriptions')
       .update({
-        plan_id: newPlanId,
+        downgrade_to_plan_id: newPlanId, // Store what plan to switch to
         status: 'cancelled', // Mark as cancelled so it expires at end of term
         cancelled_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
+        // Keep current plan_id so limits stay the same until term expires
       })
       .eq('user_id', userId)
       .eq('status', 'active')
@@ -841,10 +855,27 @@ export const subscriptionApi = {
         isWithinPaidTerm = now < periodEnd;
         
         if (subscription.status === 'active' || (subscription.status === 'cancelled' && isWithinPaidTerm)) {
-          // User gets full benefits of their current plan until term expires
+          // User gets full benefits of their CURRENT plan until term expires
+          // (not the downgrade plan - that's what they'll switch to later)
           freeLimit = subscription.subscription_plan.max_listings || 5;
           maxFeaturedInFree = subscription.subscription_plan.max_featured_listings || 1;
           maxVehicleInFree = subscription.subscription_plan.max_vehicle_listings || 1;
+          
+          console.log('Effective limits - using current plan:', {
+            status: subscription.status,
+            isWithinPaidTerm,
+            currentPlan: subscription.subscription_plan.name,
+            downgradePlan: subscription.downgrade_plan?.name,
+            limits: { freeLimit, maxFeaturedInFree, maxVehicleInFree }
+          });
+        } else {
+          // Subscription expired - use downgrade plan if available, otherwise free plan
+          if (subscription.downgrade_plan) {
+            freeLimit = subscription.downgrade_plan.max_listings || 5;
+            maxFeaturedInFree = subscription.downgrade_plan.max_featured_listings || 1;
+            maxVehicleInFree = subscription.downgrade_plan.max_vehicle_listings || 1;
+            console.log('Effective limits - using downgrade plan after expiry:', subscription.downgrade_plan.name);
+          }
         }
       }
       
