@@ -61,6 +61,17 @@ const CreateListingForm: React.FC = () => {
         console.error('Error loading saved form data:', err);
       }
     }
+
+    // Load featured state
+    const savedFeatured = localStorage.getItem('listingFormFeatured');
+    if (savedFeatured) {
+      try {
+        const parsed = JSON.parse(savedFeatured);
+        setIsFeatured(parsed);
+      } catch (err) {
+        console.error('Error loading saved featured state:', err);
+      }
+    }
   };
 
   // Check and adjust listing type based on category (called after categories are loaded)
@@ -92,9 +103,15 @@ const CreateListingForm: React.FC = () => {
       contact_email: data.contact_email,
       contact_phone: data.contact_phone,
       condition: data.condition,
-      expires_at: data.expires_at
+      expires_at: data.expires_at,
+      listing_type: data.listing_type
     };
     localStorage.setItem('listingFormData', JSON.stringify(dataToSave));
+  };
+
+  // Save featured state to localStorage
+  const saveFeaturedState = (featured: boolean) => {
+    localStorage.setItem('listingFormFeatured', JSON.stringify(featured));
   };
 
   useEffect(() => {
@@ -337,6 +354,7 @@ const CreateListingForm: React.FC = () => {
       };
 
       console.log('About to call createListingWithImages with:', listingData);
+      console.log('isFeatured state:', isFeatured);
       const newListing = await createListingWithImages(listingData, user);
       console.log('Listing created successfully:', newListing);
       
@@ -482,6 +500,7 @@ const CreateListingForm: React.FC = () => {
                 type="button"
                 onClick={() => {
                   localStorage.removeItem('listingFormData');
+                  localStorage.removeItem('listingFormFeatured');
                   setFormData({
                     title: '',
                     description: '',
@@ -495,6 +514,7 @@ const CreateListingForm: React.FC = () => {
                     expires_at: '',
                     listing_type: 'free' as 'free' | 'featured' | 'vehicle'
                   });
+                  setIsFeatured(false);
                 }}
                 className="text-sm text-gray-500 hover:text-gray-700 underline"
               >
@@ -772,6 +792,7 @@ const CreateListingForm: React.FC = () => {
                     checked={isFeatured}
                     onChange={(e) => {
                       setIsFeatured(e.target.checked);
+                      saveFeaturedState(e.target.checked);
                     }}
                     className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                   />
