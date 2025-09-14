@@ -143,6 +143,36 @@ export const deleteCategory = async (id: string): Promise<void> => {
   }
 }
 
+// Geocoding API function
+export const geocodeZipcode = async (zipcode: string): Promise<{lat: number, lng: number} | null> => {
+  try {
+    const response = await fetch(`https://api.zippopotam.us/us/${zipcode}`);
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    const place = data.places[0];
+    return {
+      lat: parseFloat(place.latitude),
+      lng: parseFloat(place.longitude)
+    };
+  } catch (error) {
+    console.error('Geocoding error:', error);
+    return null;
+  }
+};
+
+// Distance calculation function (Haversine formula)
+const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const R = 3959; // Earth's radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng/2) * Math.sin(dLng/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c; // Distance in miles
+};
+
 // Listings API
 export const getListings = async (options: {
   limit?: number
@@ -194,9 +224,8 @@ export const getListings = async (options: {
     const searchTerm = `%${options.search}%`
     query = query.or(`title.ilike.${searchTerm},description.ilike.${searchTerm},location.ilike.${searchTerm}`)
   }
-  if (options.zip_code && options.radius) {
-    query = query.ilike('zip_code', `%${options.zip_code}%`) // Simple match for now
-  }
+  // Note: We'll handle zipcode + radius filtering after the query
+  // since Supabase doesn't support complex distance calculations
 
   // Apply sorting
   const sortField = options.sort || 'created_at'
@@ -238,6 +267,23 @@ export const getListings = async (options: {
       created_at: listing.created_at
     }))
   }))
+
+  // Handle zipcode + radius filtering
+  if (options.zip_code && options.radius) {
+    const coordinates = await geocodeZipcode(options.zip_code)
+    if (coordinates) {
+      listingsWithImages = listingsWithImages.filter(listing => {
+        if (!listing.latitude || !listing.longitude) return false
+        
+        const distance = calculateDistance(
+          coordinates.lat, coordinates.lng,
+          listing.latitude, listing.longitude
+        )
+        
+        return distance <= options.radius!
+      })
+    }
+  }
 
   return listingsWithImages
 }
@@ -315,6 +361,12 @@ export const createListing = async (listingData: CreateListingData, user?: any):
   // Set default expiration date (30 days from now)
   const expiresAt = listingData.expires_at || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
+  // Geocode zipcode to get coordinates
+  let coordinates = null
+  if (listingData.zip_code) {
+    coordinates = await geocodeZipcode(listingData.zip_code)
+  }
+
   const insertData = {
     ...listingData,
     user_id: currentUser.id,
@@ -322,7 +374,9 @@ export const createListing = async (listingData: CreateListingData, user?: any):
     listing_type: listingData.listing_type || 'free',
     listing_fee: listingData.listing_fee || 0,
     is_featured: listingData.is_featured || false,
-    is_promoted: listingData.is_promoted || false
+    is_promoted: listingData.is_promoted || false,
+    latitude: coordinates?.lat || null,
+    longitude: coordinates?.lng || null
   }
 
   console.log('Inserting listing data:', insertData)
