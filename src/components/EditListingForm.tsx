@@ -86,13 +86,33 @@ const EditListingForm: React.FC = () => {
 
           // Convert existing images to UploadedImage format
           if (listingData.images && listingData.images.length > 0) {
-            const existingImages: UploadedImage[] = listingData.images.map(img => ({
-              imageUrl: img.path.startsWith('/') ? img.path : `/${img.path}`,
-              filename: img.filename || 'existing-image',
-              originalName: img.original_name || 'existing-image',
-              size: img.size || 0,
-              mimeType: img.mime_type || 'image/jpeg'
-            }));
+            console.log('📸 Raw images from listing data:', listingData.images);
+            const existingImages: UploadedImage[] = listingData.images.map((img, index) => {
+              console.log(`📸 Processing image ${index}:`, img);
+              // Handle both string URLs and image objects
+              let imageUrl = '';
+              if (typeof img === 'string') {
+                imageUrl = img;
+                console.log(`📸 Image ${index} is string:`, imageUrl);
+              } else if (img.path) {
+                imageUrl = img.path.startsWith('/') ? img.path : `/${img.path}`;
+                console.log(`📸 Image ${index} has path:`, imageUrl);
+              } else if (img.imageUrl) {
+                imageUrl = img.imageUrl;
+                console.log(`📸 Image ${index} has imageUrl:`, imageUrl);
+              }
+              
+              const result = {
+                imageUrl,
+                filename: img.filename || 'existing-image',
+                originalName: img.original_name || 'existing-image',
+                size: img.size || 0,
+                mimeType: img.mime_type || 'image/jpeg'
+              };
+              console.log(`📸 Converted image ${index}:`, result);
+              return result;
+            });
+            console.log('📸 Final existing images array:', existingImages);
             setImages(existingImages);
           }
         }
@@ -221,6 +241,7 @@ const EditListingForm: React.FC = () => {
       };
 
       console.log('📝 Form data before submission:', formData);
+      console.log('📸 Images being submitted:', images);
       console.log('📝 About to call updateListingWithImages with:', listingData);
       const updatedListing = await updateListingWithImages(id, listingData);
       console.log('Listing updated successfully:', updatedListing);
