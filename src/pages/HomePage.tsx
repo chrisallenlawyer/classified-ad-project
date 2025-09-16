@@ -53,7 +53,7 @@ export function HomePage() {
             title="Newest Listings"
             icon={<span className="text-lg">🆕</span>}
             limit={6}
-            linkTo="/search?sort=createdAt"
+            linkTo="/search?sort=created_at"
             listings={newestListings}
             isLoading={newestLoading}
           />
@@ -64,7 +64,7 @@ export function HomePage() {
             title="Popular This Week"
             icon={<FireIcon className="h-5 w-5 text-red-500" />}
             limit={6}
-            linkTo="/search?sort=views"
+            linkTo="/search?sort=view_count"
             listings={popularListings}
             isLoading={popularLoading}
           />
@@ -75,7 +75,7 @@ export function HomePage() {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-900">Browse by Category</h2>
             <Link 
-              to="/categories" 
+              to="/search" 
               className="text-blue-600 hover:text-blue-700 font-medium"
             >
               View all categories
