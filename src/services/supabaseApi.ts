@@ -124,6 +124,20 @@ export const updateCategory = async (id: string, categoryData: { name?: string; 
   console.log('Category data values:', Object.values(categoryData));
   console.log('Full category data:', JSON.stringify(categoryData, null, 2));
   
+  // First check if the category exists
+  const { data: existingCategory, error: checkError } = await supabase
+    .from('categories')
+    .select('id, name')
+    .eq('id', id)
+    .single();
+    
+  if (checkError) {
+    console.error('Category does not exist:', { id, checkError });
+    throw new Error(`Category with ID ${id} does not exist`);
+  }
+  
+  console.log('Found existing category:', existingCategory);
+  
   const { data, error } = await supabase
     .from('categories')
     .update(categoryData)
