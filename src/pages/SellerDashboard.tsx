@@ -351,9 +351,21 @@ export function SellerDashboard() {
                 <div className="aspect-w-16 aspect-h-9 bg-gray-200 rounded-t-lg overflow-hidden">
                   {listing.images && listing.images.length > 0 ? (
                     <img
-                      src={`http://localhost:3002${listing.images[0].path}?t=${Date.now()}`}
+                      src={listing.images[0].path || listing.images[0].imageUrl || listing.images[0]}
                       alt={listing.title}
                       className="w-full h-48 object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        target.parentElement!.innerHTML = `
+                          <div class="w-full h-48 flex items-center justify-center bg-gradient-to-br from-blue-100 to-indigo-100">
+                            <div class="text-center">
+                              <div class="text-gray-400 text-4xl mb-2">📷</div>
+                              <div class="text-sm text-gray-500 font-medium">Image Error</div>
+                            </div>
+                          </div>
+                        `;
+                      }}
                     />
                   ) : (
                     <div className="w-full h-48 flex items-center justify-center bg-gradient-to-br from-blue-100 to-indigo-100">
@@ -493,9 +505,21 @@ export function SellerDashboard() {
                       <div className="aspect-w-16 aspect-h-9 bg-gray-200 rounded-t-lg overflow-hidden">
                         {listing.images && listing.images.length > 0 ? (
                           <img
-                            src={`http://localhost:3002${listing.images[0].path}`}
+                            src={listing.images[0].path || listing.images[0].imageUrl || listing.images[0]}
                             alt={listing.title}
                             className="w-full h-48 object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              target.parentElement!.innerHTML = `
+                                <div class="w-full h-48 flex items-center justify-center bg-gradient-to-br from-blue-100 to-indigo-100">
+                                  <div class="text-center">
+                                    <div class="text-gray-400 text-4xl mb-2">📷</div>
+                                    <div class="text-sm text-gray-500 font-medium">Image Error</div>
+                                  </div>
+                                </div>
+                              `;
+                            }}
                           />
                         ) : (
                           <div className="w-full h-48 flex items-center justify-center bg-gradient-to-br from-blue-100 to-indigo-100">
