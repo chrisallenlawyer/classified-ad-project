@@ -99,7 +99,7 @@ export function HomePage() {
                   className="card hover:shadow-lg transition-all duration-200 text-center group hover:-translate-y-1"
                 >
                   <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl mx-auto mb-3 flex items-center justify-center group-hover:from-blue-200 group-hover:to-indigo-200 transition-all duration-200">
-                    <span className="text-2xl">📱</span>
+                    <span className="text-2xl">{category.icon || '📁'}</span>
                   </div>
                   <h3 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
                     {category.name}
