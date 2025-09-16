@@ -95,7 +95,12 @@ const EditListingForm: React.FC = () => {
                 imageUrl = img;
                 console.log(`📸 Image ${index} is string:`, imageUrl);
               } else if (img.path) {
-                imageUrl = img.path.startsWith('/') ? img.path : `/${img.path}`;
+                // Don't add leading slash to full URLs (https://)
+                if (img.path.startsWith('http://') || img.path.startsWith('https://')) {
+                  imageUrl = img.path;
+                } else {
+                  imageUrl = img.path.startsWith('/') ? img.path : `/${img.path}`;
+                }
                 console.log(`📸 Image ${index} has path:`, imageUrl);
               } else if (img.imageUrl) {
                 imageUrl = img.imageUrl;
