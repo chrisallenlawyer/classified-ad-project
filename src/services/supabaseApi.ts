@@ -492,6 +492,17 @@ export const updateListing = async (id: string, listingData: Partial<CreateListi
 
     if (imageError) {
       console.error('Error updating images:', imageError)
+    } else {
+      // Also update the JSONB images column in the listings table
+      const imageUrls = listingData.images.map(img => img.imageUrl)
+      const { error: jsonbError } = await supabase
+        .from('listings')
+        .update({ images: imageUrls })
+        .eq('id', id)
+
+      if (jsonbError) {
+        console.error('Error updating JSONB images column:', jsonbError)
+      }
     }
   }
 
