@@ -256,17 +256,19 @@ export const getListings = async (options: {
   // Convert the JSONB array to the expected format
   let listingsWithImages = listings.map(listing => ({
     ...listing,
-    images: (listing.images || []).map((imageUrl: string, index: number) => ({
-      id: `${listing.id}-${index}`,
-      listing_id: listing.id,
-      filename: imageUrl.split('/').pop() || '',
-      original_name: imageUrl.split('/').pop() || '',
-      mime_type: 'image/jpeg', // Default, could be improved
-      size: 0, // Default, could be improved
-      path: imageUrl,
-      is_primary: index === 0,
-      created_at: listing.created_at
-    }))
+    images: (listing.images || [])
+      .filter((imageUrl: any) => imageUrl && typeof imageUrl === 'string')
+      .map((imageUrl: string, index: number) => ({
+        id: `${listing.id}-${index}`,
+        listing_id: listing.id,
+        filename: imageUrl.split('/').pop() || '',
+        original_name: imageUrl.split('/').pop() || '',
+        mime_type: 'image/jpeg', // Default, could be improved
+        size: 0, // Default, could be improved
+        path: imageUrl,
+        is_primary: index === 0,
+        created_at: listing.created_at
+      }))
   }))
 
   // Handle zipcode + radius filtering
@@ -325,17 +327,19 @@ export const getListingById = async (id: string): Promise<Listing | null> => {
 
   // The images are now stored in the images JSONB column
   // Convert the JSONB array to the expected format
-  const images = (listing.images || []).map((imageUrl: string, index: number) => ({
-    id: `${listing.id}-${index}`,
-    listing_id: listing.id,
-    filename: imageUrl.split('/').pop() || '',
-    original_name: imageUrl.split('/').pop() || '',
-    mime_type: 'image/jpeg', // Default, could be improved
-    size: 0, // Default, could be improved
-    path: imageUrl,
-    is_primary: index === 0,
-    created_at: listing.created_at
-  }))
+  const images = (listing.images || [])
+    .filter((imageUrl: any) => imageUrl && typeof imageUrl === 'string')
+    .map((imageUrl: string, index: number) => ({
+      id: `${listing.id}-${index}`,
+      listing_id: listing.id,
+      filename: imageUrl.split('/').pop() || '',
+      original_name: imageUrl.split('/').pop() || '',
+      mime_type: 'image/jpeg', // Default, could be improved
+      size: 0, // Default, could be improved
+      path: imageUrl,
+      is_primary: index === 0,
+      created_at: listing.created_at
+    }))
 
   return {
     ...listing,
