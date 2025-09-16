@@ -151,9 +151,19 @@ export const updateCategory = async (id: string, categoryData: { name?: string; 
       errorCode: error.code,
       errorMessage: error.message,
       errorDetails: error.details,
+      errorHint: error.hint,
       categoryId: id,
-      categoryData
+      categoryData,
+      fullError: JSON.stringify(error, null, 2)
     });
+    
+    // Provide more helpful error message
+    if (error.code === '23505') {
+      throw new Error(`Category name "${categoryData.name}" already exists. Please choose a different name.`);
+    } else if (error.message.includes('column') && error.message.includes('does not exist')) {
+      throw new Error('Database schema issue: Missing columns. Please contact support.');
+    }
+    
     throw error
   }
 
