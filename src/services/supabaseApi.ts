@@ -118,8 +118,11 @@ export const createCategory = async (categoryData: { name: string; description?:
   return data
 }
 
-export const updateCategory = async (id: string, categoryData: { name?: string; description?: string; icon?: string; is_vehicle?: boolean }): Promise<Category> => {
-  console.log('Updating category with ID:', id, 'and data:', categoryData);
+export const updateCategory = async (id: string, categoryData: { name?: string; description?: string; icon?: string; is_vehicle?: boolean; is_active?: boolean }): Promise<Category> => {
+  console.log('Updating category with ID:', id);
+  console.log('Category data keys:', Object.keys(categoryData));
+  console.log('Category data values:', Object.values(categoryData));
+  console.log('Full category data:', JSON.stringify(categoryData, null, 2));
   
   const { data, error } = await supabase
     .from('categories')
@@ -129,7 +132,14 @@ export const updateCategory = async (id: string, categoryData: { name?: string; 
     .single()
 
   if (error) {
-    console.error('Error updating category:', error)
+    console.error('Detailed error updating category:', {
+      error,
+      errorCode: error.code,
+      errorMessage: error.message,
+      errorDetails: error.details,
+      categoryId: id,
+      categoryData
+    });
     throw error
   }
 
