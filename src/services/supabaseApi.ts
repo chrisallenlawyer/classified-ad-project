@@ -120,9 +120,22 @@ export const createCategory = async (categoryData: { name: string; description?:
 
 export const updateCategory = async (id: string, categoryData: { name?: string; description?: string; icon?: string; is_vehicle?: boolean; is_active?: boolean }): Promise<Category> => {
   console.log('Updating category with ID:', id);
-  console.log('Category data keys:', Object.keys(categoryData));
-  console.log('Category data values:', Object.values(categoryData));
-  console.log('Full category data:', JSON.stringify(categoryData, null, 2));
+  console.log('Raw category data keys:', Object.keys(categoryData));
+  console.log('Raw category data values:', Object.values(categoryData));
+  console.log('Raw category data:', JSON.stringify(categoryData, null, 2));
+  
+  // Clean the data - remove undefined values
+  const cleanData: any = {};
+  Object.keys(categoryData).forEach(key => {
+    const value = (categoryData as any)[key];
+    if (value !== undefined) {
+      cleanData[key] = value;
+    }
+  });
+  
+  console.log('Cleaned category data keys:', Object.keys(cleanData));
+  console.log('Cleaned category data values:', Object.values(cleanData));
+  console.log('Cleaned category data:', JSON.stringify(cleanData, null, 2));
   
   // First check if the category exists
   const { data: existingCategory, error: checkError } = await supabase
@@ -140,7 +153,7 @@ export const updateCategory = async (id: string, categoryData: { name?: string; 
   
   const { data, error } = await supabase
     .from('categories')
-    .update(categoryData)
+    .update(cleanData)
     .eq('id', id)
     .select()
     .single()
