@@ -197,6 +197,7 @@ export const getListings = async (options: {
     `)
     .eq('is_active', true)
     .eq('is_sold', false)
+    .gte('expires_at', new Date().toISOString())
 
   // Apply filters
   if (options.category_id) {
@@ -620,12 +621,13 @@ export const getUserFavorites = async (): Promise<Listing[]> => {
   const { data, error } = await supabase
     .from('favorites')
     .select(`
-      listing:listings(
+      listing:listings!inner(
         *,
         category:categories(*)
       )
     `)
     .eq('user_id', user.id)
+    .gte('listing.expires_at', new Date().toISOString())
 
   if (error) {
     console.error('Error fetching favorites:', error)
