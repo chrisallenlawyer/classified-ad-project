@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { sendWelcomeEmail } from '../services/emailService';
 
 export const EmailTest: React.FC = () => {
   const [testEmail, setTestEmail] = useState('');
@@ -29,8 +28,25 @@ export const EmailTest: React.FC = () => {
     }
 
     try {
-      const success = await sendWelcomeEmail(testEmail, 'Test User');
-      setResult(success ? '✅ Email sent successfully!' : '❌ Email failed to send');
+      // Call backend email endpoint instead of frontend Resend
+      const response = await fetch('/api/email/test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: testEmail,
+          name: 'Test User'
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setResult('✅ Email sent successfully! Check your inbox.');
+      } else {
+        setResult('❌ Error: ' + (data.error || 'Failed to send email'));
+      }
     } catch (error) {
       console.error('Email test error:', error);
       setResult('❌ Error: ' + (error as Error).message);
