@@ -20,6 +20,7 @@ import { ColorPaletteManager } from '../components/ColorPaletteManager';
 import CollapsibleSection from '../components/CollapsibleSection';
 import { SubscriptionLimitsManager } from '../components/SubscriptionLimitsManager';
 import { PricingManager } from '../components/PricingManager';
+import EmailTest from '../components/EmailTest';
 
 interface Category {
   id: string;
@@ -758,6 +759,36 @@ export function AdminDashboard() {
         </div>
       </CollapsibleSection>
 
+      {/* Email Service Section */}
+      <CollapsibleSection
+        title="Email Service"
+        icon={<EnvelopeIcon className="h-6 w-6 text-primary-600" />}
+        isExpanded={expandedSections.email}
+        onToggle={() => toggleSection('email')}
+      >
+        <div className="space-y-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 className="font-medium text-blue-900 mb-2">Email Service Test</h3>
+            <p className="text-sm text-blue-700 mb-4">
+              Test the email service to ensure notifications and confirmations are working correctly.
+            </p>
+            <EmailTest />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <h3 className="font-medium text-gray-900 mb-2">Email Templates</h3>
+              <p className="text-sm text-gray-600 mb-3">Welcome emails, notifications, and confirmations.</p>
+              <div className="text-xs text-gray-500">Welcome, Message alerts, Subscription confirmations</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <h3 className="font-medium text-gray-900 mb-2">Email Settings</h3>
+              <p className="text-sm text-gray-600 mb-3">Configure sender addresses and reply-to settings.</p>
+              <div className="text-xs text-gray-500">From: notifications@bamaclassifieds.com</div>
+            </div>
+          </div>
+        </div>
+      </CollapsibleSection>
 
       {/* User Management Section */}
       <CollapsibleSection
