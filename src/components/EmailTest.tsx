@@ -13,6 +13,21 @@ export const EmailTest: React.FC = () => {
     setSending(true);
     setResult('');
 
+    // Check API key first
+    const apiKey = import.meta.env.VITE_RESEND_API_KEY;
+    console.log('🔑 API Key check:', {
+      hasApiKey: !!apiKey,
+      apiKeyLength: apiKey?.length,
+      apiKeyPrefix: apiKey?.substring(0, 10) + '...',
+      envVars: Object.keys(import.meta.env)
+    });
+
+    if (!apiKey) {
+      setResult('❌ Error: VITE_RESEND_API_KEY environment variable not found');
+      setSending(false);
+      return;
+    }
+
     try {
       const success = await sendWelcomeEmail(testEmail, 'Test User');
       setResult(success ? '✅ Email sent successfully!' : '❌ Email failed to send');
