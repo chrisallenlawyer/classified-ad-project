@@ -23,6 +23,15 @@ export class EmailService {
   // Send a generic email
   static async sendEmail(template: EmailTemplate): Promise<boolean> {
     try {
+      console.log('📧 Attempting to send email with config:', {
+        from: EMAIL_CONFIG.from,
+        to: template.to,
+        replyTo: EMAIL_CONFIG.replyTo,
+        subject: template.subject,
+        hasApiKey: !!import.meta.env.VITE_RESEND_API_KEY,
+        apiKeyPrefix: import.meta.env.VITE_RESEND_API_KEY?.substring(0, 10) + '...'
+      });
+
       const { data, error } = await resend.emails.send({
         from: EMAIL_CONFIG.from,
         to: template.to,
@@ -33,14 +42,22 @@ export class EmailService {
       });
 
       if (error) {
-        console.error('Error sending email:', error);
+        console.error('📧 Resend API error:', {
+          error,
+          errorMessage: error.message,
+          errorName: error.name
+        });
         return false;
       }
 
-      console.log('Email sent successfully:', data);
+      console.log('📧 Email sent successfully:', data);
       return true;
     } catch (error) {
-      console.error('Email service error:', error);
+      console.error('📧 Email service error:', {
+        error,
+        errorMessage: (error as Error).message,
+        errorStack: (error as Error).stack
+      });
       return false;
     }
   }
