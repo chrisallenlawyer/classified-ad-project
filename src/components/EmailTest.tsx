@@ -29,9 +29,28 @@ export const EmailTest: React.FC = () => {
     }
 
     try {
-      // Use frontend Resend with verified email address
-      const success = await sendWelcomeEmail(testEmail, 'Test User');
-      setResult(success ? '✅ Email sent successfully! Check your inbox.' : '❌ Email failed to send');
+      // Call Vercel serverless function for email sending
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: testEmail,
+          name: 'Test User',
+          type: 'welcome'
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setResult('✅ Email sent successfully! Check your inbox.');
+        console.log('📧 Email sent:', data);
+      } else {
+        setResult('❌ Error: ' + (data.error || 'Failed to send email'));
+        console.error('📧 Email error:', data);
+      }
     } catch (error) {
       console.error('Email test error:', error);
       setResult('❌ Error: ' + (error as Error).message);
