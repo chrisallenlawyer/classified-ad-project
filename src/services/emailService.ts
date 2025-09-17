@@ -3,10 +3,10 @@ import { Resend } from 'resend';
 // Initialize Resend with API key (you'll need to add this to your environment variables)
 const resend = new Resend(import.meta.env.VITE_RESEND_API_KEY);
 
-// Email configuration
+// Email configuration  
 const EMAIL_CONFIG = {
-  from: 'onboarding@resend.dev', // Use Resend's default domain for testing
-  replyTo: 'support@bamaclassifieds.com',
+  from: 'chrisallenlawyer@gmail.com', // Use your verified email for testing
+  replyTo: 'chrisallenlawyer@gmail.com',
   domain: 'bamaclassifieds.com'
 };
 
