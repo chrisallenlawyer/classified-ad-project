@@ -1,10 +1,6 @@
 // Vercel Serverless Function for sending emails
 // This will work with your current Vercel deployment
 
-const { Resend } = require('resend');
-
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 module.exports = async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -28,6 +24,10 @@ module.exports = async function handler(req, res) {
     console.log('📧 Request body:', req.body);
     console.log('📧 API Key available:', !!process.env.RESEND_API_KEY);
     console.log('📧 API Key prefix:', process.env.RESEND_API_KEY?.substring(0, 10) + '...');
+
+    // Import Resend inside the function to avoid module loading issues
+    const { Resend } = await import('resend');
+    const resend = new Resend(process.env.RESEND_API_KEY);
 
     const { to, name, type = 'welcome' } = req.body;
 
