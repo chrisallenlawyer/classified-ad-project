@@ -1,5 +1,5 @@
 // Vercel Serverless Function for sending emails
-// This will work with your current Vercel deployment
+// Simplified version for testing
 
 module.exports = async function handler(req, res) {
   // Enable CORS
@@ -23,20 +23,27 @@ module.exports = async function handler(req, res) {
     console.log('📧 Request method:', req.method);
     console.log('📧 Request body:', req.body);
     console.log('📧 API Key available:', !!process.env.RESEND_API_KEY);
-    console.log('📧 API Key prefix:', process.env.RESEND_API_KEY?.substring(0, 10) + '...');
-
-    // Import Resend inside the function to avoid module loading issues
-    const { Resend } = await import('resend');
-    const resend = new Resend(process.env.RESEND_API_KEY);
-
-    const { to, name, type = 'welcome' } = req.body;
-
+    
+    // Test basic functionality first
+    const { to, name } = req.body;
+    
     if (!to) {
       console.log('📧 Error: No email address provided');
       return res.status(400).json({ error: 'Email address is required' });
     }
 
-    console.log('📧 Sending email to:', to, 'Type:', type);
+    if (!process.env.RESEND_API_KEY) {
+      console.log('📧 Error: No API key found');
+      return res.status(500).json({ error: 'RESEND_API_KEY not configured' });
+    }
+
+    // Try to import and use Resend
+    console.log('📧 Importing Resend...');
+    const { Resend } = await import('resend');
+    console.log('📧 Creating Resend instance...');
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    console.log('📧 Sending email to:', to, 'Name:', name);
 
     const { data, error } = await resend.emails.send({
       from: 'notifications@bamaclassifieds.com',
