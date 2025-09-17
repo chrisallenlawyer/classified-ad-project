@@ -5,7 +5,7 @@ const resend = new Resend(import.meta.env.VITE_RESEND_API_KEY);
 
 // Email configuration
 const EMAIL_CONFIG = {
-  from: 'notifications@bamaclassifieds.com',
+  from: 'onboarding@resend.dev', // Use Resend's default domain for testing
   replyTo: 'support@bamaclassifieds.com',
   domain: 'bamaclassifieds.com'
 };
