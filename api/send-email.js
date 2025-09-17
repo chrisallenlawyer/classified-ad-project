@@ -1,11 +1,11 @@
 // Vercel Serverless Function for sending emails
 // This will work with your current Vercel deployment
 
-import { Resend } from 'resend';
+const { Resend } = require('resend');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -23,14 +23,20 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log('📧 Email function called');
+    console.log('📧 Request method:', req.method);
+    console.log('📧 Request body:', req.body);
+    console.log('📧 API Key available:', !!process.env.RESEND_API_KEY);
+    console.log('📧 API Key prefix:', process.env.RESEND_API_KEY?.substring(0, 10) + '...');
+
     const { to, name, type = 'welcome' } = req.body;
 
     if (!to) {
+      console.log('📧 Error: No email address provided');
       return res.status(400).json({ error: 'Email address is required' });
     }
 
     console.log('📧 Sending email to:', to, 'Type:', type);
-    console.log('📧 API Key available:', !!process.env.RESEND_API_KEY);
 
     const { data, error } = await resend.emails.send({
       from: 'notifications@bamaclassifieds.com',
