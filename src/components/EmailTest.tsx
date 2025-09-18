@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { sendWelcomeEmail } from '../services/emailService';
+import { EmailService, sendWelcomeEmail, sendMessageNotification, sendSubscriptionEmail } from '../services/emailService';
 
 export const EmailTest: React.FC = () => {
   const [testEmail, setTestEmail] = useState('');
+  const [testName, setTestName] = useState('Test User');
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<string>('');
+  const [emailType, setEmailType] = useState<'welcome' | 'message' | 'subscription'>('welcome');
 
   const handleTestEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -13,31 +15,49 @@ export const EmailTest: React.FC = () => {
     setSending(true);
     setResult('');
 
-    // Using backend serverless function - no frontend API key needed
-    console.log('📧 Testing email via serverless function');
+    // Check if email service is configured
+    if (!EmailService.isConfigured()) {
+      setResult('❌ Email service not configured. Please set VITE_RESEND_API_KEY in your .env file.');
+      setSending(false);
+      return;
+    }
+
+    console.log('📧 Testing email service directly');
 
     try {
-      // Call Vercel serverless function for email sending
-      const response = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          to: testEmail,
-          name: 'Test User',
-          type: 'welcome'
-        }),
-      });
+      let success = false;
 
-      const data = await response.json();
+      switch (emailType) {
+        case 'welcome':
+          success = await sendWelcomeEmail(testEmail, testName);
+          break;
+        case 'message':
+          success = await sendMessageNotification(
+            testEmail,
+            testName,
+            'John Seller',
+            'Used iPhone 12 Pro',
+            'Hi, is this still available? I can pick it up today.',
+            'test-listing-123'
+          );
+          break;
+        case 'subscription':
+          success = await sendSubscriptionEmail(
+            testEmail,
+            testName,
+            'Professional Plan',
+            19.99,
+            'upgraded'
+          );
+          break;
+      }
 
-      if (response.ok) {
+      if (success) {
         setResult('✅ Email sent successfully! Check your inbox.');
-        console.log('📧 Email sent:', data);
+        console.log('📧 Email sent successfully');
       } else {
-        setResult('❌ Error: ' + (data.error || 'Failed to send email'));
-        console.error('📧 Email error:', data);
+        setResult('❌ Failed to send email. Check console for details.');
+        console.error('📧 Email sending failed');
       }
     } catch (error) {
       console.error('Email test error:', error);
@@ -48,10 +68,33 @@ export const EmailTest: React.FC = () => {
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md max-w-md mx-auto">
+    <div className="bg-white p-6 rounded-lg shadow-md max-w-lg mx-auto">
       <h3 className="text-lg font-semibold mb-4">Test Email Service</h3>
       
+      {!EmailService.isConfigured() && (
+        <div className="mb-4 p-3 bg-yellow-100 border border-yellow-400 rounded-md">
+          <p className="text-yellow-800 text-sm">
+            <strong>⚠️ Configuration Required:</strong> Please set your VITE_RESEND_API_KEY in the .env file
+          </p>
+        </div>
+      )}
+      
       <form onSubmit={handleTestEmail} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Email Type:
+          </label>
+          <select
+            value={emailType}
+            onChange={(e) => setEmailType(e.target.value as 'welcome' | 'message' | 'subscription')}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="welcome">Welcome Email</option>
+            <option value="message">Message Notification</option>
+            <option value="subscription">Subscription Update</option>
+          </select>
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Test Email Address:
@@ -65,13 +108,27 @@ export const EmailTest: React.FC = () => {
             required
           />
         </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Test Name:
+          </label>
+          <input
+            type="text"
+            value={testName}
+            onChange={(e) => setTestName(e.target.value)}
+            placeholder="Test User"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          />
+        </div>
         
         <button
           type="submit"
-          disabled={sending}
+          disabled={sending || !EmailService.isConfigured()}
           className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {sending ? 'Sending...' : 'Send Test Email'}
+          {sending ? 'Sending...' : `Send ${emailType.charAt(0).toUpperCase() + emailType.slice(1)} Email`}
         </button>
       </form>
       
@@ -80,6 +137,15 @@ export const EmailTest: React.FC = () => {
           {result}
         </div>
       )}
+
+      <div className="mt-4 text-sm text-gray-600">
+        <p><strong>Email Templates Available:</strong></p>
+        <ul className="list-disc list-inside mt-2 space-y-1">
+          <li><strong>Welcome:</strong> Professional onboarding email</li>
+          <li><strong>Message:</strong> Notification when someone messages about a listing</li>
+          <li><strong>Subscription:</strong> Plan upgrade/downgrade confirmations</li>
+        </ul>
+      </div>
     </div>
   );
 };

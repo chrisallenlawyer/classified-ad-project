@@ -1,12 +1,13 @@
 import { Resend } from 'resend';
+import { supabase } from '../lib/supabase';
 
-// Initialize Resend with API key (you'll need to add this to your environment variables)
+// Initialize Resend with API key
 const resend = new Resend(import.meta.env.VITE_RESEND_API_KEY);
 
 // Email configuration  
 const EMAIL_CONFIG = {
-  from: 'chrisallenlawyer@gmail.com', // Use your verified email for testing
-  replyTo: 'chrisallenlawyer@gmail.com',
+  from: import.meta.env.VITE_EMAIL_FROM || 'notifications@bamaclassifieds.com',
+  replyTo: import.meta.env.VITE_EMAIL_REPLY_TO || 'support@bamaclassifieds.com',
   domain: 'bamaclassifieds.com'
 };
 
@@ -20,8 +21,44 @@ export interface EmailTemplate {
 // Email service class
 export class EmailService {
   
-  // Send a generic email
-  static async sendEmail(template: EmailTemplate): Promise<boolean> {
+  // Check if email service is properly configured
+  static isConfigured(): boolean {
+    return !!(import.meta.env.VITE_RESEND_API_KEY && EMAIL_CONFIG.from);
+  }
+
+  // Log email attempt to Supabase
+  static async logEmail(
+    recipientEmail: string,
+    emailType: string,
+    subject: string,
+    status: 'success' | 'failed',
+    errorMessage?: string
+  ): Promise<void> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      await supabase.from('email_logs').insert({
+        recipient_email: recipientEmail,
+        email_type: emailType,
+        subject: subject,
+        status: status,
+        error_message: errorMessage,
+        user_id: user?.id
+      });
+    } catch (error) {
+      console.warn('📧 Failed to log email:', error);
+    }
+  }
+
+  // Send a generic email with improved error handling
+  static async sendEmail(template: EmailTemplate, emailType: string = 'generic'): Promise<boolean> {
+    // Check configuration first
+    if (!this.isConfigured()) {
+      console.error('📧 Email service not configured. Please set VITE_RESEND_API_KEY in your .env file');
+      await this.logEmail(template.to, emailType, template.subject, 'failed', 'Email service not configured');
+      return false;
+    }
+
     try {
       console.log('📧 Attempting to send email with config:', {
         from: EMAIL_CONFIG.from,
@@ -47,17 +84,56 @@ export class EmailService {
           errorMessage: error.message,
           errorName: error.name
         });
+        await this.logEmail(template.to, emailType, template.subject, 'failed', error.message);
         return false;
       }
 
       console.log('📧 Email sent successfully:', data);
+      await this.logEmail(template.to, emailType, template.subject, 'success');
       return true;
     } catch (error) {
+      const errorMessage = (error as Error).message;
       console.error('📧 Email service error:', {
         error,
-        errorMessage: (error as Error).message,
+        errorMessage,
         errorStack: (error as Error).stack
       });
+      await this.logEmail(template.to, emailType, template.subject, 'failed', errorMessage);
+      return false;
+    }
+  }
+
+  // Queue email for later processing (fallback for when direct sending fails)
+  static async queueEmail(
+    recipientEmail: string,
+    emailType: string,
+    subject: string,
+    htmlContent: string,
+    textContent?: string,
+    metadata: Record<string, any> = {}
+  ): Promise<boolean> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const { error } = await supabase.from('email_queue').insert({
+        recipient_email: recipientEmail,
+        email_type: emailType,
+        subject: subject,
+        html_content: htmlContent,
+        text_content: textContent,
+        metadata: metadata,
+        user_id: user?.id
+      });
+
+      if (error) {
+        console.error('📧 Failed to queue email:', error);
+        return false;
+      }
+
+      console.log('📧 Email queued successfully');
+      return true;
+    } catch (error) {
+      console.error('📧 Error queueing email:', error);
       return false;
     }
   }
@@ -134,7 +210,22 @@ Need help? Contact us at support@bamaclassifieds.com
 Visit: https://bamaclassifieds.com`
     };
 
-    return this.sendEmail(template);
+    // Try to send directly, queue as fallback
+    const success = await this.sendEmail(template, 'welcome');
+    
+    if (!success) {
+      console.log('📧 Direct send failed, queueing welcome email...');
+      return await this.queueEmail(
+        userEmail,
+        'welcome',
+        'Welcome to Bama Classifieds!',
+        template.html,
+        template.text,
+        { user_name: userName }
+      );
+    }
+    
+    return success;
   }
 
   // Message notification email
@@ -199,7 +290,27 @@ Manage email preferences: https://bamaclassifieds.com/dashboard
 © 2025 Bama Classifieds`
     };
 
-    return this.sendEmail(template);
+    // Try to send directly, queue as fallback
+    const success = await this.sendEmail(template, 'message_notification');
+    
+    if (!success) {
+      console.log('📧 Direct send failed, queueing message notification...');
+      return await this.queueEmail(
+        userEmail,
+        'message_notification',
+        template.subject,
+        template.html,
+        template.text,
+        { 
+          user_name: userName,
+          sender_name: senderName,
+          listing_title: listingTitle,
+          listing_id: listingId
+        }
+      );
+    }
+    
+    return success;
   }
 
   // Subscription confirmation email
@@ -272,7 +383,27 @@ Questions? Contact: support@bamaclassifieds.com
 © 2025 Bama Classifieds`
     };
 
-    return this.sendEmail(template);
+    // Try to send directly, queue as fallback
+    const success = await this.sendEmail(template, 'subscription');
+    
+    if (!success) {
+      console.log('📧 Direct send failed, queueing subscription email...');
+      return await this.queueEmail(
+        userEmail,
+        'subscription',
+        template.subject,
+        template.html,
+        template.text,
+        { 
+          user_name: userName,
+          plan_name: planName,
+          amount: amount,
+          action: action
+        }
+      );
+    }
+    
+    return success;
   }
 }
 
