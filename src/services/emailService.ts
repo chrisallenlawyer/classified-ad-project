@@ -1,8 +1,10 @@
 import { Resend } from 'resend';
 import { supabase } from '../lib/supabase';
 
-// Initialize Resend with API key
-const resend = new Resend(import.meta.env.VITE_RESEND_API_KEY);
+// Initialize Resend with API key (with fallback for missing key)
+const resend = import.meta.env.VITE_RESEND_API_KEY ? 
+  new Resend(import.meta.env.VITE_RESEND_API_KEY) : 
+  null;
 
 // Email configuration  
 const EMAIL_CONFIG = {
@@ -23,7 +25,7 @@ export class EmailService {
   
   // Check if email service is properly configured
   static isConfigured(): boolean {
-    return !!(import.meta.env.VITE_RESEND_API_KEY && EMAIL_CONFIG.from);
+    return !!(import.meta.env.VITE_RESEND_API_KEY && EMAIL_CONFIG.from && resend);
   }
 
   // Log email attempt to Supabase
@@ -68,6 +70,10 @@ export class EmailService {
         hasApiKey: !!import.meta.env.VITE_RESEND_API_KEY,
         apiKeyPrefix: import.meta.env.VITE_RESEND_API_KEY?.substring(0, 10) + '...'
       });
+
+      if (!resend) {
+        throw new Error('Resend client not initialized');
+      }
 
       const { data, error } = await resend.emails.send({
         from: EMAIL_CONFIG.from,
