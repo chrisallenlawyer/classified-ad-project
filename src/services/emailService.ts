@@ -62,8 +62,8 @@ export class EmailService {
         emailType: emailType
       });
 
-      // Use the server email endpoint instead of Vercel serverless function
-      const response = await fetch('/api/email/send', {
+      // Use Vercel serverless function for production deployment
+      const response = await fetch('/api/send-email', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

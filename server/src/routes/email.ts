@@ -124,7 +124,7 @@ router.post('/send', async (req, res) => {
 
   } catch (error) {
     console.error('📧 Email service error:', error);
-    res.status(500).json({ error: 'Failed to send email: ' + error.message });
+    res.status(500).json({ error: 'Failed to send email: ' + (error as Error).message });
   }
 });
 
