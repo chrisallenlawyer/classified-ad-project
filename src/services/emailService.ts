@@ -62,8 +62,8 @@ export class EmailService {
         emailType: emailType
       });
 
-      // Use the existing API proxy approach instead of direct Resend calls
-      const response = await fetch('/api/send-email', {
+      // Use the server email endpoint instead of Vercel serverless function
+      const response = await fetch('/api/email/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

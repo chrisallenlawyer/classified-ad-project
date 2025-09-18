@@ -86,4 +86,46 @@ This is a test email from the Bama Classifieds email service.
   }
 });
 
+// Send email endpoint (matches frontend expectation)
+router.post('/send', async (req, res) => {
+  try {
+    const { to, subject, html, text, from, replyTo, emailType, name } = req.body;
+
+    if (!to) {
+      return res.status(400).json({ error: 'Email address is required' });
+    }
+
+    console.log('📧 Sending email to:', to, 'Type:', emailType || 'generic');
+    console.log('📧 API Key available:', !!process.env.RESEND_API_KEY);
+
+    if (!process.env.RESEND_API_KEY) {
+      console.error('📧 No RESEND_API_KEY found in environment');
+      return res.status(500).json({ error: 'RESEND_API_KEY not configured' });
+    }
+
+    const emailData = {
+      from: from || EMAIL_CONFIG.from,
+      to: to,
+      replyTo: replyTo || EMAIL_CONFIG.replyTo,
+      subject: subject || 'Email from Bama Classifieds',
+      html: html || `<p>Hello ${name || 'there'}!</p><p>This is a test email from Bama Classifieds.</p>`,
+      text: text || `Hello ${name || 'there'}! This is a test email from Bama Classifieds.`
+    };
+
+    const { data, error } = await resend.emails.send(emailData);
+
+    if (error) {
+      console.error('📧 Resend error:', error);
+      return res.status(400).json({ error: error.message });
+    }
+
+    console.log('📧 Email sent successfully:', data);
+    res.json({ success: true, data });
+
+  } catch (error) {
+    console.error('📧 Email service error:', error);
+    res.status(500).json({ error: 'Failed to send email: ' + error.message });
+  }
+});
+
 export default router;

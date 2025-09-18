@@ -32,16 +32,29 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Email address is required' });
     }
 
-    if (!process.env.RESEND_API_KEY) {
+    // Check for API key in different possible locations
+    const apiKey = process.env.RESEND_API_KEY || process.env.VITE_RESEND_API_KEY;
+    
+    if (!apiKey) {
       console.log('📧 Error: No API key found');
+      console.log('📧 Available env vars:', Object.keys(process.env).filter(k => k.includes('RESEND')));
       return res.status(500).json({ error: 'RESEND_API_KEY not configured' });
     }
 
     // Try to import and use Resend
     console.log('📧 Importing Resend...');
-    const { Resend } = await import('resend');
+    let Resend;
+    try {
+      const resendModule = await import('resend');
+      Resend = resendModule.Resend;
+      console.log('📧 Resend imported successfully');
+    } catch (importError) {
+      console.error('📧 Failed to import Resend:', importError);
+      return res.status(500).json({ error: 'Resend package not available: ' + importError.message });
+    }
+    
     console.log('📧 Creating Resend instance...');
-    const resend = new Resend(process.env.RESEND_API_KEY);
+    const resend = new Resend(apiKey);
 
     console.log('📧 Sending email to:', to, 'Type:', emailType || 'test');
 
