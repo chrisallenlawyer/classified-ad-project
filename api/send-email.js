@@ -21,8 +21,10 @@ module.exports = async function handler(req, res) {
   try {
     console.log('📧 Email function called');
     console.log('📧 Request method:', req.method);
-    console.log('📧 Request body:', req.body);
+    console.log('📧 Request body type:', typeof req.body);
+    console.log('📧 Request body:', JSON.stringify(req.body, null, 2));
     console.log('📧 API Key available:', !!process.env.RESEND_API_KEY);
+    console.log('📧 API Key prefix:', process.env.RESEND_API_KEY?.substring(0, 10));
     
     // Handle both old and new request formats
     const { to, name, subject, html, text, from, replyTo, emailType } = req.body;
@@ -39,6 +41,12 @@ module.exports = async function handler(req, res) {
       console.log('📧 Error: No API key found');
       console.log('📧 Available env vars:', Object.keys(process.env).filter(k => k.includes('RESEND')));
       return res.status(500).json({ error: 'RESEND_API_KEY not configured' });
+    }
+    
+    // Validate API key format
+    if (!apiKey.startsWith('re_')) {
+      console.log('📧 Error: Invalid API key format');
+      return res.status(500).json({ error: 'Invalid RESEND_API_KEY format' });
     }
 
     // Try to import and use Resend
@@ -108,11 +116,18 @@ Need help? Contact us at support@bamaclassifieds.com
 Visit: https://bamaclassifieds.com`
     };
 
+    console.log('📧 Email data being sent:', JSON.stringify(emailData, null, 2));
+    
     const { data, error } = await resend.emails.send(emailData);
 
     if (error) {
-      console.error('📧 Resend error:', error);
-      return res.status(400).json({ error: error.message });
+      console.error('📧 Resend error details:', {
+        error,
+        errorType: typeof error,
+        errorKeys: Object.keys(error || {}),
+        fullError: JSON.stringify(error, null, 2)
+      });
+      return res.status(400).json({ error: error.message || error });
     }
 
     console.log('📧 Email sent successfully:', data);
