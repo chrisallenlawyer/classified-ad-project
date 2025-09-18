@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import { XMarkIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import { sendMessage } from '../services/supabaseApi';
+import { sendMessageNotification } from '../services/emailService';
 
 interface ContactSellerFormProps {
   listingId: string;
   sellerName: string;
+  sellerEmail: string;
+  sellerId: string;
   listingTitle: string;
   onClose: () => void;
   onSuccess: () => void;
@@ -14,6 +17,8 @@ interface ContactSellerFormProps {
 export function ContactSellerForm({ 
   listingId, 
   sellerName, 
+  sellerEmail,
+  sellerId,
   listingTitle, 
   onClose, 
   onSuccess 
@@ -43,8 +48,28 @@ export function ContactSellerForm({
       await sendMessage({
         listingId,
         content: message.trim(),
-        receiverId: '', // Will be filled by the API based on listing
+        receiverId: sellerId,
       });
+
+      // Send email notification to the seller
+      try {
+        const senderName = user.user_metadata?.first_name && user.user_metadata?.last_name 
+          ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
+          : user.email || 'Someone';
+        
+        await sendMessageNotification(
+          sellerEmail,
+          sellerName,
+          senderName,
+          listingTitle,
+          message.trim(),
+          listingId
+        );
+        console.log('📧 Message notification email sent successfully');
+      } catch (emailError) {
+        console.error('📧 Failed to send message notification email:', emailError);
+        // Don't block message sending if email fails
+      }
       
       onSuccess();
       onClose();

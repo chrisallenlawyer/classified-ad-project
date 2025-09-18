@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { sendWelcomeEmail } from '../services/emailService';
 
 const RegisterForm: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -49,8 +50,18 @@ const RegisterForm: React.FC = () => {
       if (error) {
         setError(error.message);
       } else {
+        // Send welcome email
+        try {
+          const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+          await sendWelcomeEmail(formData.email, fullName || 'New User');
+          console.log('📧 Welcome email sent successfully');
+        } catch (emailError) {
+          console.error('📧 Failed to send welcome email:', emailError);
+          // Don't block registration if email fails
+        }
+        
         // Show success message and redirect
-        alert('Registration successful! Please check your email to verify your account.');
+        alert('Registration successful! Please check your email to verify your account and for a welcome message.');
         navigate('/login');
       }
     } catch (err) {
