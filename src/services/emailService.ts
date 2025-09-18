@@ -25,7 +25,8 @@ export class EmailService {
   
   // Check if email service is properly configured
   static isConfigured(): boolean {
-    return !!(import.meta.env.VITE_RESEND_API_KEY && EMAIL_CONFIG.from && resend);
+    // We're using API proxy, so just check if we have basic config
+    return !!(EMAIL_CONFIG.from && EMAIL_CONFIG.replyTo);
   }
 
   // Log email attempt to Supabase
@@ -54,49 +55,41 @@ export class EmailService {
 
   // Send a generic email with improved error handling
   static async sendEmail(template: EmailTemplate, emailType: string = 'generic'): Promise<boolean> {
-    // Check configuration first
-    if (!this.isConfigured()) {
-      console.error('📧 Email service not configured. Please set VITE_RESEND_API_KEY in your .env file');
-      await this.logEmail(template.to, emailType, template.subject, 'failed', 'Email service not configured');
-      return false;
-    }
-
     try {
-      console.log('📧 Attempting to send email with config:', {
-        from: EMAIL_CONFIG.from,
+      console.log('📧 Attempting to send email via API proxy:', {
         to: template.to,
-        replyTo: EMAIL_CONFIG.replyTo,
         subject: template.subject,
-        hasApiKey: !!import.meta.env.VITE_RESEND_API_KEY,
-        apiKeyPrefix: import.meta.env.VITE_RESEND_API_KEY?.substring(0, 10) + '...'
+        emailType: emailType
       });
 
-      if (!resend) {
-        throw new Error('Resend client not initialized');
-      }
-
-      const { data, error } = await resend.emails.send({
-        from: EMAIL_CONFIG.from,
-        to: template.to,
-        replyTo: EMAIL_CONFIG.replyTo,
-        subject: template.subject,
-        html: template.html,
-        text: template.text
+      // Use the existing API proxy approach instead of direct Resend calls
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: template.to,
+          subject: template.subject,
+          html: template.html,
+          text: template.text,
+          from: EMAIL_CONFIG.from,
+          replyTo: EMAIL_CONFIG.replyTo,
+          emailType: emailType
+        }),
       });
 
-      if (error) {
-        console.error('📧 Resend API error:', {
-          error,
-          errorMessage: error.message,
-          errorName: error.name
-        });
-        await this.logEmail(template.to, emailType, template.subject, 'failed', error.message);
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        console.log('📧 Email sent successfully via API:', data);
+        await this.logEmail(template.to, emailType, template.subject, 'success');
+        return true;
+      } else {
+        console.error('📧 API error:', data);
+        await this.logEmail(template.to, emailType, template.subject, 'failed', data.error || 'API call failed');
         return false;
       }
-
-      console.log('📧 Email sent successfully:', data);
-      await this.logEmail(template.to, emailType, template.subject, 'success');
-      return true;
     } catch (error) {
       const errorMessage = (error as Error).message;
       console.error('📧 Email service error:', {

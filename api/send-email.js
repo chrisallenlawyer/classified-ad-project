@@ -24,8 +24,8 @@ module.exports = async function handler(req, res) {
     console.log('📧 Request body:', req.body);
     console.log('📧 API Key available:', !!process.env.RESEND_API_KEY);
     
-    // Test basic functionality first
-    const { to, name } = req.body;
+    // Handle both old and new request formats
+    const { to, name, subject, html, text, from, replyTo, emailType } = req.body;
     
     if (!to) {
       console.log('📧 Error: No email address provided');
@@ -43,14 +43,15 @@ module.exports = async function handler(req, res) {
     console.log('📧 Creating Resend instance...');
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    console.log('📧 Sending email to:', to, 'Name:', name);
+    console.log('📧 Sending email to:', to, 'Type:', emailType || 'test');
 
-    const { data, error } = await resend.emails.send({
-      from: 'notifications@bamaclassifieds.com',
+    // Use provided email content or fallback to default test email
+    const emailData = {
+      from: from || 'notifications@bamaclassifieds.com',
       to: to,
-      replyTo: 'support@bamaclassifieds.com',
-      subject: 'Welcome to Bama Classifieds!',
-      html: `
+      replyTo: replyTo || 'support@bamaclassifieds.com',
+      subject: subject || 'Welcome to Bama Classifieds!',
+      html: html || `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #3B82F6, #1D4ED8); padding: 40px 20px; text-align: center;">
             <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to Bama Classifieds!</h1>
@@ -62,18 +63,6 @@ module.exports = async function handler(req, res) {
             <p style="color: #4b5563; line-height: 1.6; margin-bottom: 20px;">
               Thank you for testing our email service! This confirms that email notifications are working correctly.
             </p>
-            
-            <p style="color: #4b5563; line-height: 1.6; margin-bottom: 30px;">
-              You can now:
-            </p>
-            
-            <ul style="color: #4b5563; line-height: 1.8; margin-bottom: 30px;">
-              <li>🏷️ Create and manage your listings</li>
-              <li>🔍 Search for items in your area</li>
-              <li>💬 Message other users safely</li>
-              <li>⭐ Save your favorite listings</li>
-              <li>📊 Track your listing performance</li>
-            </ul>
             
             <div style="text-align: center; margin: 30px 0;">
               <a href="https://bamaclassifieds.com/create" 
@@ -89,25 +78,14 @@ module.exports = async function handler(req, res) {
           
           <div style="background: #e5e7eb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280;">
             <p>© 2025 Bama Classifieds. All rights reserved.</p>
-            <p>
-              <a href="https://bamaclassifieds.com" style="color: #3B82F6;">Visit Website</a> | 
-              <a href="https://bamaclassifieds.com/dashboard" style="color: #3B82F6;">My Dashboard</a>
-            </p>
           </div>
         </div>
       `,
-      text: `Welcome to Bama Classifieds!
+      text: text || `Welcome to Bama Classifieds!
 
 Hi ${name || 'there'}!
 
 Thank you for testing our email service! This confirms that email notifications are working correctly.
-
-You can now:
-- Create and manage your listings
-- Search for items in your area  
-- Message other users safely
-- Save your favorite listings
-- Track your listing performance
 
 Get started: https://bamaclassifieds.com/create
 
@@ -115,7 +93,9 @@ Need help? Contact us at support@bamaclassifieds.com
 
 © 2025 Bama Classifieds. All rights reserved.
 Visit: https://bamaclassifieds.com`
-    });
+    };
+
+    const { data, error } = await resend.emails.send(emailData);
 
     if (error) {
       console.error('📧 Resend error:', error);
