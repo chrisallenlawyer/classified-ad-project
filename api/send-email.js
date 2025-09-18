@@ -1,7 +1,7 @@
 // Vercel Serverless Function for sending emails
-// Simplified version for testing
+// ES Module version for compatibility with "type": "module"
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
