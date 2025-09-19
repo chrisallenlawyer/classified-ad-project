@@ -406,7 +406,168 @@ Questions? Contact: support@bamaclassifieds.com
   }
 }
 
+  // Email confirmation for signup (replaces Supabase default)
+  static async sendSignupConfirmationEmail(userEmail: string, userName: string, confirmationUrl: string): Promise<boolean> {
+    const template: EmailTemplate = {
+      to: userEmail,
+      subject: 'Confirm Your Bama Classifieds Account',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #3B82F6, #1D4ED8); padding: 40px 20px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to Bama Classifieds!</h1>
+          </div>
+          
+          <div style="padding: 40px 20px; background: #f9fafb;">
+            <h2 style="color: #1f2937; margin-bottom: 20px;">Hi ${userName}!</h2>
+            
+            <p style="color: #4b5563; line-height: 1.6; margin-bottom: 20px;">
+              Thank you for joining Bama Classifieds! To complete your registration and start buying and selling, please confirm your email address.
+            </p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${confirmationUrl}" 
+                 style="background: #10B981; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+                Confirm Email Address
+              </a>
+            </div>
+            
+            <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
+              If you didn't create this account, you can safely ignore this email.
+            </p>
+            
+            <p style="color: #6b7280; font-size: 14px;">
+              Need help? Contact us at <a href="mailto:support@bamaclassifieds.com" style="color: #3B82F6;">support@bamaclassifieds.com</a>
+            </p>
+          </div>
+          
+          <div style="background: #e5e7eb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280;">
+            <p>© 2025 Bama Classifieds. All rights reserved.</p>
+            <p>
+              <a href="https://bamaclassifieds.com" style="color: #3B82F6;">Visit Website</a>
+            </p>
+          </div>
+        </div>
+      `,
+      text: `Welcome to Bama Classifieds!
+
+Hi ${userName}!
+
+Thank you for joining Bama Classifieds! To complete your registration and start buying and selling, please confirm your email address.
+
+Confirm your email: ${confirmationUrl}
+
+If you didn't create this account, you can safely ignore this email.
+
+Need help? Contact us at support@bamaclassifieds.com
+
+© 2025 Bama Classifieds. All rights reserved.
+Visit: https://bamaclassifieds.com`
+    };
+
+    // Try to send directly, queue as fallback
+    const success = await this.sendEmail(template, 'signup_confirmation');
+    
+    if (!success) {
+      console.log('📧 Direct send failed, queueing signup confirmation email...');
+      return await this.queueEmail(
+        userEmail,
+        'signup_confirmation',
+        'Confirm Your Bama Classifieds Account',
+        template.html,
+        template.text,
+        { user_name: userName, confirmation_url: confirmationUrl }
+      );
+    }
+    
+    return success;
+  }
+
+  // Password reset email (replaces Supabase default)
+  static async sendPasswordResetEmail(userEmail: string, userName: string, resetUrl: string): Promise<boolean> {
+    const template: EmailTemplate = {
+      to: userEmail,
+      subject: 'Reset Your Bama Classifieds Password',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #3B82F6, #1D4ED8); padding: 40px 20px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">Password Reset</h1>
+          </div>
+          
+          <div style="padding: 40px 20px; background: #f9fafb;">
+            <h2 style="color: #1f2937; margin-bottom: 20px;">Hi ${userName}!</h2>
+            
+            <p style="color: #4b5563; line-height: 1.6; margin-bottom: 20px;">
+              We received a request to reset your password for your Bama Classifieds account.
+            </p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetUrl}" 
+                 style="background: #EF4444; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+                Reset Password
+              </a>
+            </div>
+            
+            <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
+              This link will expire in 1 hour for security reasons.
+            </p>
+            
+            <p style="color: #6b7280; font-size: 14px;">
+              If you didn't request this password reset, you can safely ignore this email.
+            </p>
+            
+            <p style="color: #6b7280; font-size: 14px;">
+              Need help? Contact us at <a href="mailto:support@bamaclassifieds.com" style="color: #3B82F6;">support@bamaclassifieds.com</a>
+            </p>
+          </div>
+          
+          <div style="background: #e5e7eb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280;">
+            <p>© 2025 Bama Classifieds. All rights reserved.</p>
+            <p>
+              <a href="https://bamaclassifieds.com" style="color: #3B82F6;">Visit Website</a>
+            </p>
+          </div>
+        </div>
+      `,
+      text: `Password Reset - Bama Classifieds
+
+Hi ${userName}!
+
+We received a request to reset your password for your Bama Classifieds account.
+
+Reset your password: ${resetUrl}
+
+This link will expire in 1 hour for security reasons.
+
+If you didn't request this password reset, you can safely ignore this email.
+
+Need help? Contact us at support@bamaclassifieds.com
+
+© 2025 Bama Classifieds. All rights reserved.
+Visit: https://bamaclassifieds.com`
+    };
+
+    // Try to send directly, queue as fallback
+    const success = await this.sendEmail(template, 'password_reset');
+    
+    if (!success) {
+      console.log('📧 Direct send failed, queueing password reset email...');
+      return await this.queueEmail(
+        userEmail,
+        'password_reset',
+        'Reset Your Bama Classifieds Password',
+        template.html,
+        template.text,
+        { user_name: userName, reset_url: resetUrl }
+      );
+    }
+    
+    return success;
+  }
+}
+
 // Export individual functions for easier use
 export const sendWelcomeEmail = EmailService.sendWelcomeEmail.bind(EmailService);
 export const sendMessageNotification = EmailService.sendMessageNotification.bind(EmailService);
 export const sendSubscriptionEmail = EmailService.sendSubscriptionEmail.bind(EmailService);
+export const sendSignupConfirmationEmail = EmailService.sendSignupConfirmationEmail.bind(EmailService);
+export const sendPasswordResetEmail = EmailService.sendPasswordResetEmail.bind(EmailService);

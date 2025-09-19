@@ -72,8 +72,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const resetPassword = async (email: string) => {
+    // Get the correct production URL
+    const baseUrl = window.location.hostname === 'localhost' 
+      ? window.location.origin 
+      : 'https://bamaclassifieds.com'; // Replace with your actual production domain
+      
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: `${baseUrl}/reset-password`,
     })
     return { error }
   }

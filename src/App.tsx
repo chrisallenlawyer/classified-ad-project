@@ -13,6 +13,7 @@ import CreateListingForm from './components/CreateListingForm';
 import EditListingForm from './components/EditListingForm';
 import ListingDetail from './pages/ListingDetail';
 import ChangePassword from './pages/ChangePassword';
+import ResetPassword from './pages/ResetPassword';
 import SubscriptionManager from './components/SubscriptionManager';
 import SubscriptionDashboard from './components/SubscriptionDashboard';
 
@@ -45,6 +46,7 @@ function App() {
                   <Route path="/login" element={<LoginForm />} />
                   <Route path="/register" element={<RegisterForm />} />
                   <Route path="/change-password" element={<ChangePassword />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/create" element={<CreateListingForm />} />
                   <Route path="/edit/:id" element={<EditListingForm />} />
                   <Route path="/listing/:id" element={<ListingDetail />} />

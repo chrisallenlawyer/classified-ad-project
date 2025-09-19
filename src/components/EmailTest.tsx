@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { EmailService, sendWelcomeEmail, sendMessageNotification, sendSubscriptionEmail } from '../services/emailService';
+import { EmailService, sendWelcomeEmail, sendMessageNotification, sendSubscriptionEmail, sendSignupConfirmationEmail, sendPasswordResetEmail } from '../services/emailService';
 
 export const EmailTest: React.FC = () => {
   const [testEmail, setTestEmail] = useState('');
   const [testName, setTestName] = useState('Test User');
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<string>('');
-  const [emailType, setEmailType] = useState<'welcome' | 'message' | 'subscription'>('welcome');
+  const [emailType, setEmailType] = useState<'welcome' | 'message' | 'subscription' | 'signup_confirmation' | 'password_reset'>('welcome');
 
   const handleTestEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +50,20 @@ export const EmailTest: React.FC = () => {
             'upgraded'
           );
           break;
+        case 'signup_confirmation':
+          success = await sendSignupConfirmationEmail(
+            testEmail,
+            testName,
+            'https://bamaclassifieds.com/confirm-signup?token=test123'
+          );
+          break;
+        case 'password_reset':
+          success = await sendPasswordResetEmail(
+            testEmail,
+            testName,
+            'https://bamaclassifieds.com/reset-password?token=test456'
+          );
+          break;
       }
 
       if (success) {
@@ -86,12 +100,14 @@ export const EmailTest: React.FC = () => {
           </label>
           <select
             value={emailType}
-            onChange={(e) => setEmailType(e.target.value as 'welcome' | 'message' | 'subscription')}
+            onChange={(e) => setEmailType(e.target.value as 'welcome' | 'message' | 'subscription' | 'signup_confirmation' | 'password_reset')}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="welcome">Welcome Email</option>
             <option value="message">Message Notification</option>
             <option value="subscription">Subscription Update</option>
+            <option value="signup_confirmation">Signup Confirmation</option>
+            <option value="password_reset">Password Reset</option>
           </select>
         </div>
 
@@ -144,6 +160,8 @@ export const EmailTest: React.FC = () => {
           <li><strong>Welcome:</strong> Professional onboarding email</li>
           <li><strong>Message:</strong> Notification when someone messages about a listing</li>
           <li><strong>Subscription:</strong> Plan upgrade/downgrade confirmations</li>
+          <li><strong>Signup Confirmation:</strong> Custom email verification (replaces Supabase default)</li>
+          <li><strong>Password Reset:</strong> Custom password reset (replaces Supabase default)</li>
         </ul>
       </div>
     </div>
