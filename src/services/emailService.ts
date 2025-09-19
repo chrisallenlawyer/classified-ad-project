@@ -404,9 +404,8 @@ Questions? Contact: support@bamaclassifieds.com
     
     return success;
   }
-}
 
-  // Email confirmation for signup (replaces Supabase default)
+  // Email confirmation for signup (replaces Supabase default)  
   static async sendSignupConfirmationEmail(userEmail: string, userName: string, confirmationUrl: string): Promise<boolean> {
     const template: EmailTemplate = {
       to: userEmail,
