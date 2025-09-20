@@ -54,6 +54,19 @@ export function ContactSellerForm({
 
       // Send email notification to the seller (only if they have notifications enabled)
       try {
+        console.log('📧 Attempting to send notification email to:', {
+          sellerEmail,
+          sellerId,
+          sellerName,
+          listingTitle
+        });
+
+        // Validate we have the seller's email
+        if (!sellerEmail || sellerEmail === 'seller@example.com') {
+          console.warn('📧 Invalid or test seller email, skipping notification:', sellerEmail);
+          return;
+        }
+
         // Check if seller has email notifications enabled
         const emailNotificationsEnabled = await EmailService.checkUserEmailPreferences(sellerId);
         
@@ -61,6 +74,14 @@ export function ContactSellerForm({
           const senderName = user.user_metadata?.first_name && user.user_metadata?.last_name 
             ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
             : user.email || 'Someone';
+          
+          console.log('📧 Sending notification email with data:', {
+            to: sellerEmail,
+            senderName,
+            sellerName,
+            listingTitle,
+            messagePreview: message.trim().substring(0, 100)
+          });
           
           await sendMessageNotification(
             sellerEmail,

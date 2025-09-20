@@ -352,6 +352,8 @@ const ListingDetail: React.FC = () => {
         <ContactSellerForm
           listingId={listing.id}
           sellerName={listing.user?.user_metadata?.first_name || listing.user?.email || 'Seller'}
+          sellerEmail={listing.user?.email || ''}
+          sellerId={listing.user?.id || ''}
           listingTitle={listing.title}
           onClose={() => setShowContactForm(false)}
           onSuccess={() => setContactSuccess(true)}
