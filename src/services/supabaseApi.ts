@@ -394,10 +394,28 @@ export const getListingById = async (id: string): Promise<Listing | null> => {
       created_at: listing.created_at
     }))
 
-  return {
+  // Add seller information using contact_email from listing
+  const listingWithSeller = {
     ...listing,
-    images: images
-  }
+    images: images,
+    user: {
+      id: listing.user_id,
+      email: listing.contact_email || '',
+      user_metadata: {
+        first_name: 'Seller', // We'll enhance this later with real user data
+        last_name: ''
+      }
+    }
+  };
+
+  console.log('📧 Listing fetched with seller info:', {
+    listingId: listingWithSeller.id,
+    sellerEmail: listingWithSeller.user.email,
+    sellerId: listingWithSeller.user.id,
+    contactEmail: listing.contact_email
+  });
+
+  return listingWithSeller;
 }
 
 export const createListing = async (listingData: CreateListingData, user?: any): Promise<Listing> => {

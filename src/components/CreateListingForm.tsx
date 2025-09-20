@@ -129,6 +129,16 @@ const CreateListingForm: React.FC = () => {
     loadPricingData(); // Load pricing configuration
   }, []);
 
+  // Auto-populate contact email with user's signup email
+  useEffect(() => {
+    if (user?.email && !formData.contact_email) {
+      setFormData(prev => ({
+        ...prev,
+        contact_email: user.email
+      }));
+    }
+  }, [user?.email, formData.contact_email]);
+
   // Adjust listing type when categories are loaded and form data is available
   useEffect(() => {
     if (categories.length > 0) {
