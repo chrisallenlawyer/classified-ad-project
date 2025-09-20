@@ -890,13 +890,63 @@ export const sendMessage = async (messageData: SendMessageData): Promise<Message
 
   console.log('✅ Message sent successfully:', message)
 
-  // Simulate email notification (in production, this would be handled by the backend)
-  console.log('📧 Email notification simulation:')
-  console.log(`To: seller@example.com`)
-  console.log(`Subject: New message about "${listing.title}"`)
-  console.log(`From: ${user.email}`)
-  console.log(`Message: ${messageData.content}`)
-  console.log('---')
+  // Determine who should receive the email notification
+  const recipientId = messageData.receiverId || listing.user_id;
+  
+  // Send real email notification to the message recipient
+  try {
+    // Import email service dynamically to avoid circular imports
+    const { sendMessageNotification } = await import('./emailService');
+    
+    console.log('📧 Determining email recipient:', {
+      providedReceiverId: messageData.receiverId,
+      listingOwnerId: listing.user_id,
+      finalRecipientId: recipientId
+    });
+    
+    // Get recipient's information
+    const { data: allUsers, error: usersError } = await supabase.rpc('get_all_users');
+    
+    if (!usersError && allUsers) {
+      const recipientUser = allUsers.find((u: any) => u.id === recipientId);
+
+      if (recipientUser) {
+        const recipientName = recipientUser.raw_user_meta_data?.first_name 
+          ? `${recipientUser.raw_user_meta_data.first_name} ${recipientUser.raw_user_meta_data?.last_name || ''}`.trim()
+          : 'User';
+
+        const senderName = user.user_metadata?.first_name && user.user_metadata?.last_name 
+          ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
+          : user.email || 'Someone';
+
+        console.log('📧 Sending email notification to recipient:', {
+          recipientEmail: recipientUser.email,
+          recipientName,
+          senderName,
+          listingTitle: listing.title,
+          messagePreview: messageData.content.substring(0, 100)
+        });
+
+        await sendMessageNotification(
+          recipientUser.email,
+          recipientName,
+          senderName,
+          listing.title,
+          messageData.content,
+          messageData.listingId
+        );
+        
+        console.log('📧 Email notification sent successfully to recipient');
+      } else {
+        console.warn('📧 Could not find recipient user data for email notification');
+      }
+    } else {
+      console.warn('📧 Could not fetch users for email notification:', usersError);
+    }
+  } catch (emailError) {
+    console.error('📧 Failed to send email notification:', emailError);
+    // Don't block message sending if email fails
+  }
 
   const result = {
     ...message,
@@ -906,8 +956,8 @@ export const sendMessage = async (messageData: SendMessageData): Promise<Message
       user_metadata: user.user_metadata || {}
     },
     receiver: {
-      id: listing.user_id,
-      email: 'seller@example.com',
+      id: recipientId,
+      email: 'recipient@example.com', // This will be updated with real data later
       user_metadata: {}
     },
     listing: {
