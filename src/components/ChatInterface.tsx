@@ -6,9 +6,11 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   ArrowTopRightOnSquareIcon,
-  PhotoIcon
+  PhotoIcon,
+  TrashIcon,
+  EllipsisVerticalIcon
 } from '@heroicons/react/24/outline';
-import { getConversations, sendMessage, markMessageAsRead, Conversation, Message } from '../services/supabaseApi';
+import { getConversations, sendMessage, markMessageAsRead, deleteConversation, Conversation, Message } from '../services/supabaseApi';
 import { useAuth } from '../contexts/AuthContext';
 
 export function ChatInterface() {
@@ -19,6 +21,8 @@ export function ChatInterface() {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [isListingPreviewCollapsed, setIsListingPreviewCollapsed] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
 
   // Fetch all conversations
   const { data: conversations = [], isLoading, error } = useQuery(
@@ -67,12 +71,36 @@ export function ChatInterface() {
     },
   });
 
+  // Delete conversation mutation
+  const deleteConversationMutation = useMutation(deleteConversation, {
+    onSuccess: () => {
+      queryClient.invalidateQueries('conversations');
+      setShowDeleteModal(false);
+      setConversationToDelete(null);
+      // If we deleted the currently selected conversation, clear selection
+      if (conversationToDelete === selectedConversationId) {
+        setSelectedConversationId(null);
+      }
+    },
+    onError: (error: any) => {
+      console.error('Failed to delete conversation:', error);
+    },
+  });
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!newMessage.trim() || !selectedConversation) {
+      console.log('❌ Cannot send message:', { newMessage: newMessage.trim(), selectedConversation });
       return;
     }
+
+    console.log('📤 Sending message:', {
+      listingId: selectedConversation.listingId,
+      content: newMessage.trim(),
+      receiverId: selectedConversation.otherUserId,
+      otherUserName: selectedConversation.otherUser.name
+    });
 
     try {
       await sendMessageMutation.mutateAsync({
@@ -80,8 +108,9 @@ export function ChatInterface() {
         content: newMessage.trim(),
         receiverId: selectedConversation.otherUserId
       });
+      console.log('✅ Message sent successfully');
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('❌ Error sending message:', error);
     }
   };
 
@@ -95,6 +124,22 @@ export function ChatInterface() {
         .filter(msg => msg.receiver_id === user?.id && !msg.is_read)
         .forEach(msg => markAsReadMutation.mutate(msg.id));
     }
+  };
+
+  const handleDeleteConversation = (conversationId: string) => {
+    setConversationToDelete(conversationId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteConversation = () => {
+    if (conversationToDelete) {
+      deleteConversationMutation.mutate(conversationToDelete);
+    }
+  };
+
+  const cancelDeleteConversation = () => {
+    setShowDeleteModal(false);
+    setConversationToDelete(null);
   };
 
   const formatMessageTime = (dateString: string) => {
@@ -175,12 +220,27 @@ export function ChatInterface() {
           {conversations.map((conversation) => (
             <div
               key={conversation.id}
-              onClick={() => handleConversationSelect(conversation.id)}
-              className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
+              className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors relative group ${
                 selectedConversationId === conversation.id ? 'bg-blue-50 border-blue-200' : ''
               }`}
             >
-              <div className="flex items-start space-x-3">
+              {/* Delete button - shows on hover */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteConversation(conversation.id);
+                }}
+                className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Delete conversation"
+              >
+                <TrashIcon className="h-4 w-4" />
+              </button>
+
+              {/* Clickable conversation content */}
+              <div 
+                onClick={() => handleConversationSelect(conversation.id)}
+                className="flex items-start space-x-3 cursor-pointer"
+              >
                 <div className="flex-shrink-0">
                   {conversation.listing.images?.[0] ? (
                     <img
@@ -366,6 +426,39 @@ export function ChatInterface() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <TrashIcon className="h-6 w-6 text-red-600 mr-3" />
+              <h3 className="text-lg font-medium text-gray-900">Delete Conversation</h3>
+            </div>
+            
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete this conversation? This action cannot be undone and will remove all messages in this conversation.
+            </p>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={cancelDeleteConversation}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                disabled={deleteConversationMutation.isLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteConversation}
+                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
+                disabled={deleteConversationMutation.isLoading}
+              >
+                {deleteConversationMutation.isLoading ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

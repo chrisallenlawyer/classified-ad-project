@@ -1163,6 +1163,31 @@ export const getConversationById = async (conversationId: string): Promise<Conve
   return conversations.find(conv => conv.id === conversationId) || null
 }
 
+export const deleteConversation = async (conversationId: string): Promise<void> => {
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    throw new Error('User must be authenticated to delete conversations')
+  }
+
+  // Parse conversation ID to get listing and other user
+  const [listingId, otherUserId] = conversationId.split('-')
+  
+  // Delete all messages in this conversation where current user is sender or receiver
+  const { error } = await supabase
+    .from('messages')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('listing_id', listingId)
+    .or(`and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`)
+
+  if (error) {
+    console.error('Error deleting conversation:', error)
+    throw new Error('Failed to delete conversation: ' + error.message)
+  }
+
+  console.log('✅ Conversation deleted successfully:', conversationId)
+}
+
 export const markMessageAsRead = async (messageId: string): Promise<void> => {
   const { error } = await supabase
     .from('messages')
