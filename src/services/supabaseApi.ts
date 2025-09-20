@@ -1170,18 +1170,29 @@ export const deleteConversation = async (conversationId: string): Promise<void> 
     throw new Error('User must be authenticated to delete conversations')
   }
 
+  console.log('🗑️ Attempting to delete conversation:', conversationId)
+  
   // Parse conversation ID to get listing and other user
   const [listingId, otherUserId] = conversationId.split('-')
   
-  // Delete all messages in this conversation where current user is sender or receiver
+  console.log('🔍 Parsed conversation ID:', { listingId, otherUserId, currentUserId: user.id })
+  
+  // Validate that we have valid UUIDs
+  if (!listingId || !otherUserId) {
+    throw new Error('Invalid conversation ID format')
+  }
+
+  // Delete all messages in this conversation involving current user
+  // Use a more specific query to avoid UUID parsing issues
   const { error } = await supabase
     .from('messages')
     .update({ deleted_at: new Date().toISOString() })
     .eq('listing_id', listingId)
-    .or(`and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`)
+    .in('sender_id', [user.id, otherUserId])
+    .in('receiver_id', [user.id, otherUserId])
 
   if (error) {
-    console.error('Error deleting conversation:', error)
+    console.error('❌ Error deleting conversation:', error)
     throw new Error('Failed to delete conversation: ' + error.message)
   }
 

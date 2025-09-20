@@ -127,6 +127,9 @@ export function ChatInterface() {
   };
 
   const handleDeleteConversation = (conversationId: string) => {
+    console.log('🗑️ Delete conversation clicked:', conversationId);
+    console.log('🔍 Conversation ID length:', conversationId.length);
+    console.log('🔍 Conversation ID parts:', conversationId.split('-'));
     setConversationToDelete(conversationId);
     setShowDeleteModal(true);
   };
