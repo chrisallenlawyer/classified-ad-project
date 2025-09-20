@@ -1098,7 +1098,7 @@ export const getConversations = async (): Promise<Conversation[]> => {
   
   allMessages.forEach(message => {
     const otherUserId = message.sender_id === user.id ? message.receiver_id : message.sender_id
-    const conversationKey = `${message.listing_id}-${otherUserId}`
+    const conversationKey = `${message.listing_id}|${otherUserId}`
     
     if (!conversationMap.has(conversationKey)) {
       conversationMap.set(conversationKey, [])
@@ -1110,7 +1110,7 @@ export const getConversations = async (): Promise<Conversation[]> => {
   const conversations: Conversation[] = []
   
   for (const [conversationKey, messages] of conversationMap.entries()) {
-    const [listingId, otherUserId] = conversationKey.split('-')
+    const [listingId, otherUserId] = conversationKey.split('|')
     const sortedMessages = messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
     const lastMessage = sortedMessages[sortedMessages.length - 1]
     
@@ -1173,7 +1173,23 @@ export const deleteConversation = async (conversationId: string): Promise<void> 
   console.log('🗑️ Attempting to delete conversation:', conversationId)
   
   // Parse conversation ID to get listing and other user
-  const [listingId, otherUserId] = conversationId.split('-')
+  // Handle both old format (UUID-UUID with hyphens) and new format (UUID|UUID)
+  let listingId: string, otherUserId: string
+  
+  if (conversationId.includes('|')) {
+    // New format: UUID|UUID
+    [listingId, otherUserId] = conversationId.split('|')
+  } else {
+    // Old format: UUID-UUID (need to parse carefully)
+    const parts = conversationId.split('-')
+    if (parts.length === 10) {
+      // Two complete UUIDs joined by hyphens
+      listingId = `${parts[0]}-${parts[1]}-${parts[2]}-${parts[3]}-${parts[4]}`
+      otherUserId = `${parts[5]}-${parts[6]}-${parts[7]}-${parts[8]}-${parts[9]}`
+    } else {
+      throw new Error('Invalid conversation ID format - unexpected number of parts: ' + parts.length)
+    }
+  }
   
   console.log('🔍 Parsed conversation ID:', { listingId, otherUserId, currentUserId: user.id })
   
