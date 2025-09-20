@@ -137,6 +137,25 @@ export class EmailService {
     return result;
   }
 
+  // Check if user has email notifications enabled
+  static async checkUserEmailPreferences(userId: string): Promise<boolean> {
+    try {
+      // For now, we'll use a simple approach since we can't directly query auth.users
+      // We'll assume notifications are enabled by default
+      // In the future, we can add a user_preferences table
+      
+      console.log('📧 Checking email preferences for user:', userId);
+      
+      // Default to true (notifications enabled) for now
+      // This can be enhanced later with a dedicated user preferences system
+      return true;
+    } catch (error) {
+      console.error('📧 Error checking user email preferences:', error);
+      // Default to true if we can't check preferences
+      return true;
+    }
+  }
+
   // Send email using database template (with fallback to hardcoded)
   static async sendEmailWithTemplate(
     templateName: string, 

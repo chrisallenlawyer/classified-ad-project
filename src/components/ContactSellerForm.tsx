@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { XMarkIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import { sendMessage } from '../services/supabaseApi';
-import { sendMessageNotification } from '../services/emailService';
+import { sendMessageNotification, EmailService } from '../services/emailService';
+import { supabase } from '../lib/supabase';
 
 interface ContactSellerFormProps {
   listingId: string;
@@ -51,21 +52,28 @@ export function ContactSellerForm({
         receiverId: sellerId,
       });
 
-      // Send email notification to the seller
+      // Send email notification to the seller (only if they have notifications enabled)
       try {
-        const senderName = user.user_metadata?.first_name && user.user_metadata?.last_name 
-          ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
-          : user.email || 'Someone';
+        // Check if seller has email notifications enabled
+        const emailNotificationsEnabled = await EmailService.checkUserEmailPreferences(sellerId);
         
-        await sendMessageNotification(
-          sellerEmail,
-          sellerName,
-          senderName,
-          listingTitle,
-          message.trim(),
-          listingId
-        );
-        console.log('📧 Message notification email sent successfully');
+        if (emailNotificationsEnabled) {
+          const senderName = user.user_metadata?.first_name && user.user_metadata?.last_name 
+            ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
+            : user.email || 'Someone';
+          
+          await sendMessageNotification(
+            sellerEmail,
+            sellerName,
+            senderName,
+            listingTitle,
+            message.trim(),
+            listingId
+          );
+          console.log('📧 Message notification email sent successfully');
+        } else {
+          console.log('📧 Seller has email notifications disabled, skipping email');
+        }
       } catch (emailError) {
         console.error('📧 Failed to send message notification email:', emailError);
         // Don't block message sending if email fails

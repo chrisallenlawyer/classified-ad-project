@@ -459,8 +459,8 @@ export function SellerDashboard() {
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow">
               <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-medium text-gray-900">Messages from Buyers</h2>
-                <p className="text-sm text-gray-600">Communicate with potential buyers about your listings</p>
+                <h2 className="text-lg font-medium text-gray-900">Messages</h2>
+                <p className="text-sm text-gray-600">Communicate with other users about your listings</p>
               </div>
               <div className="p-6">
                 <MessagesList />

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { BellIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
+import { supabase } from '../lib/supabase';
 
 export function NotificationSettings() {
   const { user } = useAuth();
@@ -8,35 +9,34 @@ export function NotificationSettings() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Load notification preferences from localStorage
-    const saved = localStorage.getItem('notification-preferences');
-    if (saved) {
-      try {
-        const preferences = JSON.parse(saved);
-        setEmailNotifications(preferences.emailNotifications ?? true);
-      } catch (err) {
-        console.error('Error loading notification preferences:', err);
-      }
+    // Load notification preferences from user metadata
+    if (user) {
+      const emailNotifPref = user.user_metadata?.email_notifications;
+      setEmailNotifications(emailNotifPref !== false); // Default to true if not set
     }
-  }, []);
+  }, [user]);
 
   const handleToggleEmailNotifications = async () => {
     setIsLoading(true);
     
     try {
       const newValue = !emailNotifications;
-      setEmailNotifications(newValue);
       
-      // Save to localStorage
-      localStorage.setItem('notification-preferences', JSON.stringify({
-        emailNotifications: newValue
-      }));
+      // Update user metadata in Supabase
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          ...user?.user_metadata,
+          email_notifications: newValue
+        }
+      });
 
-      // In a real app, you would save this to the database
-      console.log('Notification preferences updated:', { emailNotifications: newValue });
+      if (error) {
+        throw error;
+      }
+
+      setEmailNotifications(newValue);
+      console.log('📧 Email notification preferences updated:', { emailNotifications: newValue });
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
     } catch (err) {
       console.error('Error updating notification preferences:', err);
       // Revert on error
@@ -83,10 +83,10 @@ export function NotificationSettings() {
           </button>
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-          <p className="text-blue-800 text-sm">
-            <strong>Note:</strong> Email notifications are currently simulated. In a production app, 
-            this would integrate with an email service like SendGrid or AWS SES to send real notifications.
+        <div className="bg-green-50 border border-green-200 rounded-md p-3">
+          <p className="text-green-800 text-sm">
+            <strong>✅ Email notifications are active!</strong> You'll receive professional email alerts 
+            when someone messages you about your listings. Powered by Resend email service.
           </p>
         </div>
       </div>
