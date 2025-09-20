@@ -893,10 +893,23 @@ export const sendMessage = async (messageData: SendMessageData): Promise<Message
 
   // Insert message without foreign key relationships
   console.log('💬 Inserting message...')
+  
+  // Determine the correct receiver:
+  // - If receiverId is provided (for replies), use that
+  // - Otherwise, use the listing owner (for initial messages)
+  const receiverId = messageData.receiverId || listing.user_id
+  
+  console.log('🎯 Determining message recipient:', {
+    providedReceiverId: messageData.receiverId,
+    listingOwnerId: listing.user_id,
+    finalReceiverId: receiverId,
+    currentUserId: user.id
+  })
+  
   const messagePayload = {
     content: messageData.content,
     sender_id: user.id,
-    receiver_id: listing.user_id,
+    receiver_id: receiverId,
     listing_id: messageData.listingId
   }
   
@@ -916,8 +929,8 @@ export const sendMessage = async (messageData: SendMessageData): Promise<Message
 
   console.log('✅ Message sent successfully:', message)
 
-  // Determine who should receive the email notification
-  const recipientId = messageData.receiverId || listing.user_id;
+  // Determine who should receive the email notification (use the same logic as message recipient)
+  const emailRecipientId = receiverId;
   
   // Send real email notification to the message recipient
   try {
@@ -927,14 +940,14 @@ export const sendMessage = async (messageData: SendMessageData): Promise<Message
     console.log('📧 Determining email recipient:', {
       providedReceiverId: messageData.receiverId,
       listingOwnerId: listing.user_id,
-      finalRecipientId: recipientId
+      finalRecipientId: emailRecipientId
     });
     
     // Get recipient's information
     const { data: allUsers, error: usersError } = await supabase.rpc('get_all_users');
     
     if (!usersError && allUsers) {
-      const recipientUser = allUsers.find((u: any) => u.id === recipientId);
+      const recipientUser = allUsers.find((u: any) => u.id === emailRecipientId);
 
       if (recipientUser) {
         const recipientName = recipientUser.raw_user_meta_data?.first_name 
@@ -982,7 +995,7 @@ export const sendMessage = async (messageData: SendMessageData): Promise<Message
       user_metadata: user.user_metadata || {}
     },
     receiver: {
-      id: recipientId,
+      id: receiverId,
       email: 'recipient@example.com', // This will be updated with real data later
       user_metadata: {}
     },
