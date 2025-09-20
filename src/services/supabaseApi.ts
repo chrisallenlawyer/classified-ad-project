@@ -799,6 +799,8 @@ export interface Message {
   sender_id: string
   receiver_id: string
   listing_id: string
+  isIncoming?: boolean
+  isOutgoing?: boolean
   sender?: {
     id: string
     email: string
@@ -820,6 +822,30 @@ export interface Message {
     title: string
     price: number
   }
+}
+
+export interface Conversation {
+  id: string
+  listingId: string
+  otherUserId: string
+  listing: {
+    id: string
+    title: string
+    price: number
+    images: string[]
+    category?: {
+      name: string
+    }
+  }
+  otherUser: {
+    id: string
+    name: string
+    email: string
+  }
+  messages: Message[]
+  lastMessage: Message
+  lastActivity: Date
+  unreadCount: number
 }
 
 export interface SendMessageData {
@@ -1050,6 +1076,91 @@ export const getSentMessages = async (): Promise<Message[]> => {
   // Get all messages and filter for sent ones
   const allMessages = await getUserMessages()
   return allMessages.filter(message => message.isOutgoing)
+}
+
+// New conversation-based API functions
+export const getConversations = async (): Promise<Conversation[]> => {
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    throw new Error('User must be authenticated to view conversations')
+  }
+
+  // Get all messages for the user
+  const allMessages = await getUserMessages()
+  
+  if (!allMessages.length) {
+    return []
+  }
+
+  // Group messages by conversation (listing + other person)
+  const conversationMap = new Map<string, Message[]>()
+  
+  allMessages.forEach(message => {
+    const otherUserId = message.sender_id === user.id ? message.receiver_id : message.sender_id
+    const conversationKey = `${message.listing_id}-${otherUserId}`
+    
+    if (!conversationMap.has(conversationKey)) {
+      conversationMap.set(conversationKey, [])
+    }
+    conversationMap.get(conversationKey)!.push(message)
+  })
+
+  // Convert to Conversation objects
+  const conversations: Conversation[] = []
+  
+  for (const [conversationKey, messages] of conversationMap.entries()) {
+    const [listingId, otherUserId] = conversationKey.split('-')
+    const sortedMessages = messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    const lastMessage = sortedMessages[sortedMessages.length - 1]
+    
+    // Get listing info
+    const listing = lastMessage.listing
+    if (!listing) continue
+    
+    // Get other user info
+    const otherUser = lastMessage.sender_id === user.id ? lastMessage.receiver : lastMessage.sender
+    if (!otherUser) continue
+    
+    // Count unread messages (messages received by current user that are unread)
+    const unreadCount = sortedMessages.filter(msg => 
+      msg.receiver_id === user.id && !msg.is_read
+    ).length
+
+    const conversation: Conversation = {
+      id: conversationKey,
+      listingId,
+      otherUserId,
+      listing: {
+        id: listing.id,
+        title: listing.title,
+        price: listing.price,
+        images: [], // Will be populated if needed
+        category: listing.category
+      },
+      otherUser: {
+        id: otherUser.id,
+        name: otherUser.user_metadata?.first_name 
+          ? `${otherUser.user_metadata.first_name} ${otherUser.user_metadata.last_name || ''}`.trim()
+          : otherUser.email || 'User',
+        email: otherUser.email || ''
+      },
+      messages: sortedMessages,
+      lastMessage,
+      lastActivity: new Date(lastMessage.created_at),
+      unreadCount
+    }
+    
+    conversations.push(conversation)
+  }
+
+  // Sort by last activity (most recent first)
+  return conversations.sort((a, b) => b.lastActivity.getTime() - a.lastActivity.getTime())
+}
+
+export const getConversationById = async (conversationId: string): Promise<Conversation | null> => {
+  const conversations = await getConversations()
+  return conversations.find(conv => conv.id === conversationId) || null
 }
 
 export const markMessageAsRead = async (messageId: string): Promise<void> => {
