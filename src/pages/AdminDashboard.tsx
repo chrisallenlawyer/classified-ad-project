@@ -21,6 +21,7 @@ import CollapsibleSection from '../components/CollapsibleSection';
 import { SubscriptionLimitsManager } from '../components/SubscriptionLimitsManager';
 import { PricingManager } from '../components/PricingManager';
 import EmailTest from '../components/EmailTest';
+import EmailTemplateEditor from '../components/EmailTemplateEditor';
 
 interface Category {
   id: string;
@@ -775,12 +776,12 @@ export function AdminDashboard() {
             <EmailTest />
           </div>
           
+          {/* Email Template Editor */}
+          <div className="bg-white rounded-lg border border-gray-200">
+            <EmailTemplateEditor />
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white rounded-lg p-4 border border-gray-200">
-              <h3 className="font-medium text-gray-900 mb-2">Email Templates</h3>
-              <p className="text-sm text-gray-600 mb-3">Welcome emails, notifications, and confirmations.</p>
-              <div className="text-xs text-gray-500">Welcome, Message alerts, Subscription confirmations</div>
-            </div>
             <div className="bg-white rounded-lg p-4 border border-gray-200">
               <h3 className="font-medium text-gray-900 mb-2">Email Settings</h3>
               <p className="text-sm text-gray-600 mb-3">Configure sender addresses and reply-to settings.</p>

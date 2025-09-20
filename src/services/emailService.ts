@@ -102,6 +102,77 @@ export class EmailService {
     }
   }
 
+  // Get email template from database
+  static async getEmailTemplate(templateName: string): Promise<{subject: string, html: string, text: string} | null> {
+    try {
+      const { data, error } = await supabase
+        .from('email_templates')
+        .select('subject, html_content, text_content')
+        .eq('name', templateName)
+        .eq('is_active', true)
+        .single();
+
+      if (error || !data) {
+        console.warn(`📧 Template '${templateName}' not found in database, using fallback`);
+        return null;
+      }
+
+      return {
+        subject: data.subject,
+        html: data.html_content,
+        text: data.text_content || ''
+      };
+    } catch (error) {
+      console.error('📧 Error fetching email template:', error);
+      return null;
+    }
+  }
+
+  // Replace template variables with actual values
+  static replaceTemplateVariables(content: string, variables: Record<string, string>): string {
+    let result = content;
+    Object.entries(variables).forEach(([key, value]) => {
+      result = result.replace(new RegExp(`{{${key}}}`, 'g'), value);
+    });
+    return result;
+  }
+
+  // Send email using database template (with fallback to hardcoded)
+  static async sendEmailWithTemplate(
+    templateName: string, 
+    recipientEmail: string, 
+    variables: Record<string, string>,
+    fallbackTemplate?: EmailTemplate
+  ): Promise<boolean> {
+    try {
+      // Try to get template from database first
+      const dbTemplate = await this.getEmailTemplate(templateName);
+      
+      let template: EmailTemplate;
+      
+      if (dbTemplate) {
+        // Use database template with variable replacement
+        template = {
+          to: recipientEmail,
+          subject: this.replaceTemplateVariables(dbTemplate.subject, variables),
+          html: this.replaceTemplateVariables(dbTemplate.html, variables),
+          text: this.replaceTemplateVariables(dbTemplate.text, variables)
+        };
+      } else if (fallbackTemplate) {
+        // Use fallback template if database template not found
+        template = fallbackTemplate;
+      } else {
+        console.error(`📧 No template found for '${templateName}' and no fallback provided`);
+        return false;
+      }
+
+      return await this.sendEmail(template, templateName);
+    } catch (error) {
+      console.error('📧 Error sending email with template:', error);
+      return false;
+    }
+  }
+
   // Queue email for later processing (fallback for when direct sending fails)
   static async queueEmail(
     recipientEmail: string,
@@ -137,9 +208,10 @@ export class EmailService {
     }
   }
 
-  // Welcome email for new users
+  // Welcome email for new users (now uses database templates)
   static async sendWelcomeEmail(userEmail: string, userName: string): Promise<boolean> {
-    const template: EmailTemplate = {
+    // Try database template first, with hardcoded fallback
+    const fallbackTemplate: EmailTemplate = {
       to: userEmail,
       subject: 'Welcome to Bama Classifieds!',
       html: `
@@ -155,18 +227,6 @@ export class EmailService {
               Thank you for joining Bama Classifieds, Alabama's premier marketplace for buying and selling locally.
             </p>
             
-            <p style="color: #4b5563; line-height: 1.6; margin-bottom: 30px;">
-              You can now:
-            </p>
-            
-            <ul style="color: #4b5563; line-height: 1.8; margin-bottom: 30px;">
-              <li>🏷️ Create and manage your listings</li>
-              <li>🔍 Search for items in your area</li>
-              <li>💬 Message other users safely</li>
-              <li>⭐ Save your favorite listings</li>
-              <li>📊 Track your listing performance</li>
-            </ul>
-            
             <div style="text-align: center; margin: 30px 0;">
               <a href="https://bamaclassifieds.com/create" 
                  style="background: #3B82F6; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
@@ -181,10 +241,6 @@ export class EmailService {
           
           <div style="background: #e5e7eb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280;">
             <p>© 2025 Bama Classifieds. All rights reserved.</p>
-            <p>
-              <a href="https://bamaclassifieds.com" style="color: #3B82F6;">Visit Website</a> | 
-              <a href="https://bamaclassifieds.com/dashboard" style="color: #3B82F6;">My Dashboard</a>
-            </p>
           </div>
         </div>
       `,
@@ -194,40 +250,20 @@ Hi ${userName}!
 
 Thank you for joining Bama Classifieds, Alabama's premier marketplace for buying and selling locally.
 
-You can now:
-- Create and manage your listings
-- Search for items in your area  
-- Message other users safely
-- Save your favorite listings
-- Track your listing performance
-
 Get started: https://bamaclassifieds.com/create
 
-Need help? Contact us at support@bamaclassifieds.com
-
-© 2025 Bama Classifieds. All rights reserved.
-Visit: https://bamaclassifieds.com`
+© 2025 Bama Classifieds. All rights reserved.`
     };
 
-    // Try to send directly, queue as fallback
-    const success = await this.sendEmail(template, 'welcome');
-    
-    if (!success) {
-      console.log('📧 Direct send failed, queueing welcome email...');
-      return await this.queueEmail(
-        userEmail,
-        'welcome',
-        'Welcome to Bama Classifieds!',
-        template.html,
-        template.text,
-        { user_name: userName }
-      );
-    }
-    
-    return success;
+    return await this.sendEmailWithTemplate(
+      'welcome',
+      userEmail,
+      { userName },
+      fallbackTemplate
+    );
   }
 
-  // Message notification email
+  // Message notification email (now uses database templates)
   static async sendMessageNotification(
     userEmail: string, 
     userName: string, 
@@ -289,27 +325,18 @@ Manage email preferences: https://bamaclassifieds.com/dashboard
 © 2025 Bama Classifieds`
     };
 
-    // Try to send directly, queue as fallback
-    const success = await this.sendEmail(template, 'message_notification');
-    
-    if (!success) {
-      console.log('📧 Direct send failed, queueing message notification...');
-      return await this.queueEmail(
-        userEmail,
-        'message_notification',
-        template.subject,
-        template.html,
-        template.text,
-        { 
-          user_name: userName,
-          sender_name: senderName,
-          listing_title: listingTitle,
-          listing_id: listingId
-        }
-      );
-    }
-    
-    return success;
+    return await this.sendEmailWithTemplate(
+      'message_notification',
+      userEmail,
+      { 
+        userName,
+        senderName,
+        listingTitle,
+        messagePreview,
+        listingId
+      },
+      template
+    );
   }
 
   // Subscription confirmation email
