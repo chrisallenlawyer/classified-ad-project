@@ -978,10 +978,11 @@ export const getUserMessages = async (): Promise<Message[]> => {
     throw new Error('User must be authenticated to view messages')
   }
 
+  // Get all messages where user is either sender or receiver (for full conversation threads)
   const { data, error } = await supabase
     .from('messages')
     .select('*')
-    .eq('receiver_id', user.id)
+    .or(`receiver_id.eq.${user.id},sender_id.eq.${user.id}`)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
@@ -1008,22 +1009,26 @@ export const getUserMessages = async (): Promise<Message[]> => {
     .select('id, name')
     .in('id', categoryIds)
 
-  // Combine the data
+  // Combine the data and mark message direction
   return data.map(message => {
     const listing = listings?.find(l => l.id === message.listing_id)
     const category = categories?.find(c => c.id === listing?.category_id)
+    const isIncoming = message.receiver_id === user.id
+    const isOutgoing = message.sender_id === user.id
     
     return {
       ...message,
+      isIncoming,
+      isOutgoing,
       sender: {
         id: message.sender_id,
-        email: 'sender@example.com',
-        user_metadata: {}
+        email: isOutgoing ? (user.email || '') : 'sender@example.com',
+        user_metadata: isOutgoing ? (user.user_metadata || {}) : {}
       },
       receiver: {
-        id: user.id,
-        email: user.email || '',
-        user_metadata: user.user_metadata || {}
+        id: message.receiver_id,
+        email: isIncoming ? (user.email || '') : 'receiver@example.com',
+        user_metadata: isIncoming ? (user.user_metadata || {}) : {}
       },
       listing: listing ? {
         id: listing.id,
@@ -1035,68 +1040,16 @@ export const getUserMessages = async (): Promise<Message[]> => {
   })
 }
 
+export const getIncomingMessages = async (): Promise<Message[]> => {
+  // Get all messages and filter for incoming ones
+  const allMessages = await getUserMessages()
+  return allMessages.filter(message => message.isIncoming)
+}
+
 export const getSentMessages = async (): Promise<Message[]> => {
-  const { data: { user } } = await supabase.auth.getUser()
-  
-  if (!user) {
-    throw new Error('User must be authenticated to view messages')
-  }
-
-  const { data, error } = await supabase
-    .from('messages')
-    .select('*')
-    .eq('sender_id', user.id)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('Error fetching sent messages:', error)
-    throw error
-  }
-
-  if (!data || data.length === 0) {
-    return []
-  }
-
-  // Get listing info for each message
-  const listingIds = [...new Set(data.map(msg => msg.listing_id))]
-  const { data: listings } = await supabase
-    .from('listings')
-    .select('id, title, price, category_id')
-    .in('id', listingIds)
-
-  // Get category info for listings
-  const categoryIds = [...new Set(listings?.map(l => l.category_id).filter(Boolean) || [])]
-  const { data: categories } = await supabase
-    .from('categories')
-    .select('id, name')
-    .in('id', categoryIds)
-
-  // Combine the data
-  return data.map(message => {
-    const listing = listings?.find(l => l.id === message.listing_id)
-    const category = categories?.find(c => c.id === listing?.category_id)
-    
-    return {
-      ...message,
-      sender: {
-        id: user.id,
-        email: user.email || '',
-        user_metadata: user.user_metadata || {}
-      },
-      receiver: {
-        id: message.receiver_id,
-        email: 'receiver@example.com',
-        user_metadata: {}
-      },
-      listing: listing ? {
-        id: listing.id,
-        title: listing.title,
-        price: listing.price,
-        category: category ? { name: category.name } : undefined
-      } : undefined
-    }
-  })
+  // Get all messages and filter for sent ones
+  const allMessages = await getUserMessages()
+  return allMessages.filter(message => message.isOutgoing)
 }
 
 export const markMessageAsRead = async (messageId: string): Promise<void> => {

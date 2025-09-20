@@ -14,7 +14,7 @@ import {
   ArrowPathIcon,
   ArrowTopRightOnSquareIcon
 } from '@heroicons/react/24/outline';
-import { getUserMessages, getSentMessages, getDeletedMessages, markMessageAsRead, sendMessage, deleteMessage, restoreMessage, permanentDeleteMessage, Message } from '../services/supabaseApi';
+import { getUserMessages, getIncomingMessages, getSentMessages, getDeletedMessages, markMessageAsRead, sendMessage, deleteMessage, restoreMessage, permanentDeleteMessage, Message } from '../services/supabaseApi';
 
 type MessageTab = 'incoming' | 'sent' | 'deleted';
 
@@ -30,7 +30,7 @@ export function MessagesList() {
   // Fetch incoming messages
   const { data: incomingMessages, isLoading: incomingLoading, error: incomingError } = useQuery(
     'incoming-messages',
-    getUserMessages,
+    getIncomingMessages,
     {
       refetchInterval: 30000, // Refetch every 30 seconds
     }
