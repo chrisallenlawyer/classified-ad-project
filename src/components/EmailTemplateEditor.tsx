@@ -38,16 +38,29 @@ const EmailTemplateEditor: React.FC = () => {
   const loadTemplates = async () => {
     try {
       setIsLoading(true);
+      setError('');
+      
+      console.log('📧 Loading email templates...');
+      
       const { data, error } = await supabase
         .from('email_templates')
         .select('*')
         .order('display_name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('📧 Supabase error loading templates:', error);
+        throw error;
+      }
+
+      console.log('📧 Templates loaded:', data);
       setTemplates(data || []);
-    } catch (err) {
-      console.error('Error loading templates:', err);
-      setError('Failed to load email templates');
+      
+      if (!data || data.length === 0) {
+        setError('No email templates found. Please create some templates first.');
+      }
+    } catch (err: any) {
+      console.error('📧 Error loading templates:', err);
+      setError(`Failed to load email templates: ${err.message || err.code || 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }
@@ -90,37 +103,43 @@ const EmailTemplateEditor: React.FC = () => {
       setIsSaving(true);
       setError('');
 
-      // Create new version and update template
-      const { error } = await supabase.rpc('create_template_version', {
-        template_id: selectedTemplate.id,
+      console.log('📧 Saving template:', selectedTemplate.name);
+
+      // Update template directly
+      const { error } = await supabase
+        .from('email_templates')
+        .update({
+          subject: editForm.subject,
+          html_content: editForm.html_content,
+          text_content: editForm.text_content,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedTemplate.id);
+
+      if (error) {
+        console.error('📧 Error updating template:', error);
+        throw error;
+      }
+
+      console.log('📧 Template saved successfully');
+      setSuccess('Template updated successfully!');
+      setIsEditing(false);
+      
+      // Update selected template in state
+      setSelectedTemplate({
+        ...selectedTemplate,
         subject: editForm.subject,
         html_content: editForm.html_content,
         text_content: editForm.text_content
       });
-
-      if (error) throw error;
-
-      setSuccess('Template updated successfully!');
-      setIsEditing(false);
       
       // Reload templates to get updated data
       await loadTemplates();
-      
-      // Update selected template
-      const updatedTemplate = templates.find(t => t.id === selectedTemplate.id);
-      if (updatedTemplate) {
-        setSelectedTemplate({
-          ...updatedTemplate,
-          subject: editForm.subject,
-          html_content: editForm.html_content,
-          text_content: editForm.text_content
-        });
-      }
 
       setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      console.error('Error saving template:', err);
-      setError('Failed to save template. Please try again.');
+    } catch (err: any) {
+      console.error('📧 Error saving template:', err);
+      setError(`Failed to save template: ${err.message || err.code || 'Unknown error'}`);
     } finally {
       setIsSaving(false);
     }
