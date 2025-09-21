@@ -1509,9 +1509,26 @@ export const archiveSupportConversation = async (conversationId: string): Promis
   console.log('📁 Archiving support conversation:', conversationId)
   
   const [userId, category] = conversationId.split('|')
+  
+  console.log('📁 Archive details:', { userId, category, adminId: user.id });
+
+  // First, check what messages we're trying to archive
+  const { data: messagesToArchive, error: checkError } = await supabase
+    .from('messages')
+    .select('id, content, sender_id, receiver_id, message_type, support_category')
+    .eq('message_type', 'support')
+    .eq('support_category', category)
+    .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+
+  console.log('📁 Messages to archive:', messagesToArchive);
+  console.log('📁 Check error:', checkError);
+
+  if (!messagesToArchive || messagesToArchive.length === 0) {
+    throw new Error('No messages found to archive for this conversation');
+  }
 
   // Mark all messages in this support conversation as archived
-  const { error } = await supabase
+  const { data: updateResult, error } = await supabase
     .from('messages')
     .update({ 
       deleted_at: new Date().toISOString(),
@@ -1520,6 +1537,9 @@ export const archiveSupportConversation = async (conversationId: string): Promis
     .eq('message_type', 'support')
     .eq('support_category', category)
     .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+    .select('id')
+
+  console.log('📁 Archive update result:', updateResult);
 
   if (error) {
     console.error('❌ Error archiving support conversation:', error)
@@ -1544,14 +1564,34 @@ export const deleteSupportConversation = async (conversationId: string): Promise
   console.log('🗑️ Permanently deleting support conversation:', conversationId)
   
   const [userId, category] = conversationId.split('|')
+  
+  console.log('🗑️ Delete details:', { userId, category, adminId: user.id });
+
+  // First, check what messages we're trying to delete
+  const { data: messagesToDelete, error: checkError } = await supabase
+    .from('messages')
+    .select('id, content, sender_id, receiver_id, message_type, support_category')
+    .eq('message_type', 'support')
+    .eq('support_category', category)
+    .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+
+  console.log('🗑️ Messages to delete:', messagesToDelete);
+  console.log('🗑️ Check error:', checkError);
+
+  if (!messagesToDelete || messagesToDelete.length === 0) {
+    throw new Error('No messages found to delete for this conversation');
+  }
 
   // Permanently delete all messages in this support conversation
-  const { error } = await supabase
+  const { data: deleteResult, error } = await supabase
     .from('messages')
     .delete()
     .eq('message_type', 'support')
     .eq('support_category', category)
     .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+    .select('id')
+
+  console.log('🗑️ Delete result:', deleteResult);
 
   if (error) {
     console.error('❌ Error deleting support conversation:', error)
