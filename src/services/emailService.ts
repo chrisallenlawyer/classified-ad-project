@@ -267,6 +267,7 @@ This is an automated notification from Bama Classifieds support system.
       // In the future, this could query the database for users with admin roles
       return [
         'chrisallenlawyer@gmail.com', // Main admin
+        'ace3672@hotmail.com',        // Secondary admin (if needed)
         // Add other admin emails here as needed
       ];
     } catch (error) {
