@@ -1515,28 +1515,37 @@ export const archiveSupportConversation = async (conversationId: string): Promis
   // First, check what messages we're trying to archive
   const { data: messagesToArchive, error: checkError } = await supabase
     .from('messages')
-    .select('id, content, sender_id, receiver_id, message_type, support_category')
+    .select('*')
     .eq('message_type', 'support')
     .eq('support_category', category)
-    .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
 
-  console.log('📁 Messages to archive:', messagesToArchive);
+  console.log('📁 Messages to archive (all in category):', messagesToArchive);
   console.log('📁 Check error:', checkError);
 
   if (!messagesToArchive || messagesToArchive.length === 0) {
     throw new Error('No messages found to archive for this conversation');
   }
 
+  // Filter messages that belong to this conversation (involving the user)
+  const conversationMessages = messagesToArchive.filter(msg => 
+    msg.sender_id === userId || msg.receiver_id === userId
+  );
+
+  console.log('📁 Conversation messages to archive:', conversationMessages);
+
+  if (conversationMessages.length === 0) {
+    throw new Error('No conversation messages found to archive');
+  }
+
   // Mark all messages in this support conversation as archived
+  const messageIds = conversationMessages.map(msg => msg.id);
   const { data: updateResult, error } = await supabase
     .from('messages')
     .update({ 
       deleted_at: new Date().toISOString(),
       admin_assigned_to: user.id // Track which admin archived it
     })
-    .eq('message_type', 'support')
-    .eq('support_category', category)
-    .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+    .in('id', messageIds)
     .select('id')
 
   console.log('📁 Archive update result:', updateResult);
@@ -1570,25 +1579,34 @@ export const deleteSupportConversation = async (conversationId: string): Promise
   // First, check what messages we're trying to delete
   const { data: messagesToDelete, error: checkError } = await supabase
     .from('messages')
-    .select('id, content, sender_id, receiver_id, message_type, support_category')
+    .select('*')
     .eq('message_type', 'support')
     .eq('support_category', category)
-    .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
 
-  console.log('🗑️ Messages to delete:', messagesToDelete);
+  console.log('🗑️ Messages to delete (all in category):', messagesToDelete);
   console.log('🗑️ Check error:', checkError);
 
   if (!messagesToDelete || messagesToDelete.length === 0) {
     throw new Error('No messages found to delete for this conversation');
   }
 
+  // Filter messages that belong to this conversation (involving the user)
+  const conversationMessages = messagesToDelete.filter(msg => 
+    msg.sender_id === userId || msg.receiver_id === userId
+  );
+
+  console.log('🗑️ Conversation messages to delete:', conversationMessages);
+
+  if (conversationMessages.length === 0) {
+    throw new Error('No conversation messages found to delete');
+  }
+
   // Permanently delete all messages in this support conversation
+  const messageIds = conversationMessages.map(msg => msg.id);
   const { data: deleteResult, error } = await supabase
     .from('messages')
     .delete()
-    .eq('message_type', 'support')
-    .eq('support_category', category)
-    .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+    .in('id', messageIds)
     .select('id')
 
   console.log('🗑️ Delete result:', deleteResult);
