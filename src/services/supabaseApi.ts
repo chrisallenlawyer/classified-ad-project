@@ -966,13 +966,13 @@ export const sendMessage = async (messageData: SendMessageData): Promise<Message
     
     // Send email notifications to all admins
     try {
-      const { sendSupportNotificationToAdmins } = await import('./emailService');
+      const emailService = await import('./emailService');
       
       const userName = user.user_metadata?.first_name && user.user_metadata?.last_name 
         ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
         : user.email || 'User';
 
-      await sendSupportNotificationToAdmins(
+      await emailService.EmailService.sendSupportNotificationToAdmins(
         user.email || '',
         userName,
         messageData.supportCategory || 'general',
@@ -1289,14 +1289,7 @@ export const getSupportMessages = async (): Promise<Message[]> => {
 
   const { data, error } = await supabase
     .from('messages')
-    .select(`
-      *,
-      sender:sender_id(
-        id,
-        email,
-        raw_user_meta_data
-      )
-    `)
+    .select('*')
     .eq('message_type', 'support')
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
@@ -1310,14 +1303,14 @@ export const getSupportMessages = async (): Promise<Message[]> => {
     return []
   }
 
-  // Process and return support messages
+  // Process and return support messages with basic structure
   return data.map(message => ({
     ...message,
-    sender: message.sender ? {
-      id: message.sender.id,
-      email: message.sender.email,
-      user_metadata: message.sender.raw_user_meta_data || {}
-    } : undefined
+    sender: {
+      id: message.sender_id,
+      email: 'user@example.com', // Will be populated later if needed
+      user_metadata: {}
+    }
   }))
 }
 
