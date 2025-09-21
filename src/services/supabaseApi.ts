@@ -878,46 +878,70 @@ export const sendMessage = async (messageData: SendMessageData): Promise<Message
 
   console.log('✅ User authenticated:', user.id)
 
-  // First, get the listing to find the seller
-  console.log('🔍 Fetching listing:', messageData.listingId)
-  const { data: listing, error: listingError } = await supabase
-    .from('listings')
-    .select('user_id, title, price')
-    .eq('id', messageData.listingId)
-    .single()
-
-  if (listingError) {
-    console.error('Listing fetch error:', listingError)
-    throw new Error('Failed to fetch listing: ' + listingError.message)
-  }
+  let listing: any = null
   
-  if (!listing) {
-    console.error('Listing not found')
-    throw new Error('Listing not found')
-  }
+  // Handle different message types
+  if (messageData.messageType === 'support') {
+    console.log('📞 Creating support message with category:', messageData.supportCategory)
+  } else {
+    // First, get the listing to find the seller
+    console.log('🔍 Fetching listing:', messageData.listingId)
+    const { data: listingData, error: listingError } = await supabase
+      .from('listings')
+      .select('user_id, title, price')
+      .eq('id', messageData.listingId)
+      .single()
 
-  console.log('✅ Listing found:', listing)
+    if (listingError) {
+      console.error('Listing fetch error:', listingError)
+      throw new Error('Failed to fetch listing: ' + listingError.message)
+    }
+    
+    if (!listingData) {
+      console.error('Listing not found')
+      throw new Error('Listing not found')
+    }
+
+    listing = listingData
+    console.log('✅ Listing found:', listing)
+  }
 
   // Insert message without foreign key relationships
   console.log('💬 Inserting message...')
   
-  // Determine the correct receiver:
-  // - If receiverId is provided (for replies), use that
-  // - Otherwise, use the listing owner (for initial messages)
-  const receiverId = messageData.receiverId || listing.user_id
+  // Determine the correct receiver and build payload based on message type
+  let receiverId: string | null = null
+  let messagePayload: any
   
-  console.log('🎯 Determining message recipient:', {
-    providedReceiverId: messageData.receiverId,
-    listingOwnerId: listing.user_id,
-    finalReceiverId: receiverId,
-    currentUserId: user.id
-  })
-  
-  const messagePayload = {
-    content: messageData.content,
-    sender_id: user.id,
-    receiver_id: receiverId,
-    listing_id: messageData.listingId
+  if (messageData.messageType === 'support') {
+    // Support messages don't have a specific receiver (any admin can respond)
+    console.log('📞 Creating support message payload')
+    messagePayload = {
+      content: messageData.content,
+      sender_id: user.id,
+      receiver_id: null, // No specific receiver for support messages
+      listing_id: null,  // No listing for support messages
+      message_type: 'support',
+      support_category: messageData.supportCategory
+    }
+  } else {
+    // Regular listing messages
+    receiverId = messageData.receiverId || listing.user_id
+    
+    console.log('🎯 Determining message recipient:', {
+      providedReceiverId: messageData.receiverId,
+      listingOwnerId: listing.user_id,
+      finalReceiverId: receiverId,
+      currentUserId: user.id
+    })
+    
+    messagePayload = {
+      content: messageData.content,
+      sender_id: user.id,
+      receiver_id: receiverId,
+      listing_id: messageData.listingId,
+      message_type: 'listing'
+    }
   }
   
   console.log('Message payload:', messagePayload)
@@ -936,62 +960,68 @@ export const sendMessage = async (messageData: SendMessageData): Promise<Message
 
   console.log('✅ Message sent successfully:', message)
 
-  // Determine who should receive the email notification (use the same logic as message recipient)
-  const emailRecipientId = receiverId;
-  
-  // Send real email notification to the message recipient
-  try {
-    // Import email service dynamically to avoid circular imports
-    const { sendMessageNotification } = await import('./emailService');
+  // Handle email notifications based on message type
+  if (messageData.messageType === 'support') {
+    console.log('📞 Support message created - will notify admins');
+    // TODO: Send email notifications to all admins
+    // This will be implemented in the next step
+  } else {
+    // Send email notification for listing messages
+    const emailRecipientId = receiverId;
     
-    console.log('📧 Determining email recipient:', {
-      providedReceiverId: messageData.receiverId,
-      listingOwnerId: listing.user_id,
-      finalRecipientId: emailRecipientId
-    });
-    
-    // Get recipient's information
-    const { data: allUsers, error: usersError } = await supabase.rpc('get_all_users');
-    
-    if (!usersError && allUsers) {
-      const recipientUser = allUsers.find((u: any) => u.id === emailRecipientId);
+    try {
+      // Import email service dynamically to avoid circular imports
+      const { sendMessageNotification } = await import('./emailService');
+      
+      console.log('📧 Determining email recipient:', {
+        providedReceiverId: messageData.receiverId,
+        listingOwnerId: listing.user_id,
+        finalRecipientId: emailRecipientId
+      });
+      
+      // Get recipient's information
+      const { data: allUsers, error: usersError } = await supabase.rpc('get_all_users');
+      
+      if (!usersError && allUsers) {
+        const recipientUser = allUsers.find((u: any) => u.id === emailRecipientId);
 
-      if (recipientUser) {
-        const recipientName = recipientUser.raw_user_meta_data?.first_name 
-          ? `${recipientUser.raw_user_meta_data.first_name} ${recipientUser.raw_user_meta_data?.last_name || ''}`.trim()
-          : 'User';
+        if (recipientUser) {
+          const recipientName = recipientUser.raw_user_meta_data?.first_name 
+            ? `${recipientUser.raw_user_meta_data.first_name} ${recipientUser.raw_user_meta_data?.last_name || ''}`.trim()
+            : 'User';
 
-        const senderName = user.user_metadata?.first_name && user.user_metadata?.last_name 
-          ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
-          : user.email || 'Someone';
+          const senderName = user.user_metadata?.first_name && user.user_metadata?.last_name 
+            ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
+            : user.email || 'Someone';
 
-        console.log('📧 Sending email notification to recipient:', {
-          recipientEmail: recipientUser.email,
-          recipientName,
-          senderName,
-          listingTitle: listing.title,
-          messagePreview: messageData.content.substring(0, 100)
-        });
+          console.log('📧 Sending email notification to recipient:', {
+            recipientEmail: recipientUser.email,
+            recipientName,
+            senderName,
+            listingTitle: listing.title,
+            messagePreview: messageData.content.substring(0, 100)
+          });
 
-        await sendMessageNotification(
-          recipientUser.email,
-          recipientName,
-          senderName,
-          listing.title,
-          messageData.content,
-          messageData.listingId
-        );
-        
-        console.log('📧 Email notification sent successfully to recipient');
+          await sendMessageNotification(
+            recipientUser.email,
+            recipientName,
+            senderName,
+            listing.title,
+            messageData.content,
+            messageData.listingId
+          );
+          
+          console.log('📧 Email notification sent successfully to recipient');
+        } else {
+          console.warn('📧 Could not find recipient user data for email notification');
+        }
       } else {
-        console.warn('📧 Could not find recipient user data for email notification');
+        console.warn('📧 Could not fetch users for email notification:', usersError);
       }
-    } else {
-      console.warn('📧 Could not fetch users for email notification:', usersError);
+    } catch (emailError) {
+      console.error('📧 Failed to send email notification:', emailError);
+      // Don't block message sending if email fails
     }
-  } catch (emailError) {
-    console.error('📧 Failed to send email notification:', emailError);
-    // Don't block message sending if email fails
   }
 
   const result = {
@@ -1001,12 +1031,12 @@ export const sendMessage = async (messageData: SendMessageData): Promise<Message
       email: user.email || '',
       user_metadata: user.user_metadata || {}
     },
-    receiver: {
+    receiver: messageData.messageType === 'support' ? null : {
       id: receiverId,
       email: 'recipient@example.com', // This will be updated with real data later
       user_metadata: {}
     },
-    listing: {
+    listing: messageData.messageType === 'support' ? null : {
       id: listing.id,
       title: listing.title,
       price: listing.price
@@ -1113,12 +1143,20 @@ export const getConversations = async (): Promise<Conversation[]> => {
     return []
   }
 
-  // Group messages by conversation (listing + other person)
+  // Group messages by conversation (listing + other person OR support category)
   const conversationMap = new Map<string, Message[]>()
   
   allMessages.forEach(message => {
-    const otherUserId = message.sender_id === user.id ? message.receiver_id : message.sender_id
-    const conversationKey = `${message.listing_id}|${otherUserId}`
+    let conversationKey: string
+    
+    if (message.message_type === 'support') {
+      // Support conversations are grouped by category
+      conversationKey = `support|${message.support_category}`
+    } else {
+      // Regular listing conversations
+      const otherUserId = message.sender_id === user.id ? message.receiver_id : message.sender_id
+      conversationKey = `${message.listing_id}|${otherUserId}`
+    }
     
     if (!conversationMap.has(conversationKey)) {
       conversationMap.set(conversationKey, [])
@@ -1130,48 +1168,81 @@ export const getConversations = async (): Promise<Conversation[]> => {
   const conversations: Conversation[] = []
   
   for (const [conversationKey, messages] of conversationMap.entries()) {
-    const [listingId, otherUserId] = conversationKey.split('|')
     const sortedMessages = messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
     const lastMessage = sortedMessages[sortedMessages.length - 1]
     
-    // Get listing info
-    const listing = lastMessage.listing
-    if (!listing) continue
-    
-    // Get other user info
-    const otherUser = lastMessage.sender_id === user.id ? lastMessage.receiver : lastMessage.sender
-    if (!otherUser) continue
-    
-    // Count unread messages (messages received by current user that are unread)
-    const unreadCount = sortedMessages.filter(msg => 
-      msg.receiver_id === user.id && !msg.is_read
-    ).length
+    if (conversationKey.startsWith('support|')) {
+      // Handle support conversations
+      const supportCategory = conversationKey.split('|')[1]
+      
+      // Count unread messages (support messages from admins that are unread)
+      const unreadCount = sortedMessages.filter(msg => 
+        msg.sender_id !== user.id && !msg.is_read
+      ).length
 
-    const conversation: Conversation = {
-      id: conversationKey,
-      listingId,
-      otherUserId,
-      listing: {
-        id: listing.id,
-        title: listing.title,
-        price: listing.price,
-        images: [], // Will be populated if needed
-        category: listing.category
-      },
-      otherUser: {
-        id: otherUser.id,
-        name: otherUser.user_metadata?.first_name 
-          ? `${otherUser.user_metadata.first_name} ${otherUser.user_metadata.last_name || ''}`.trim()
-          : otherUser.email || 'User',
-        email: otherUser.email || ''
-      },
-      messages: sortedMessages,
-      lastMessage,
-      lastActivity: new Date(lastMessage.created_at),
-      unreadCount
+      const conversation: Conversation = {
+        id: conversationKey,
+        listingId: '',
+        otherUserId: 'admin',
+        messageType: 'support',
+        supportCategory,
+        listing: null,
+        otherUser: {
+          id: 'admin',
+          name: 'Support Team',
+          email: 'support@bamaclassifieds.com'
+        },
+        messages: sortedMessages,
+        lastMessage,
+        lastActivity: new Date(lastMessage.created_at),
+        unreadCount
+      }
+      
+      conversations.push(conversation)
+    } else {
+      // Handle regular listing conversations
+      const [listingId, otherUserId] = conversationKey.split('|')
+      
+      // Get listing info
+      const listing = lastMessage.listing
+      if (!listing) continue
+      
+      // Get other user info
+      const otherUser = lastMessage.sender_id === user.id ? lastMessage.receiver : lastMessage.sender
+      if (!otherUser) continue
+      
+      // Count unread messages (messages received by current user that are unread)
+      const unreadCount = sortedMessages.filter(msg => 
+        msg.receiver_id === user.id && !msg.is_read
+      ).length
+
+      const conversation: Conversation = {
+        id: conversationKey,
+        listingId,
+        otherUserId,
+        messageType: 'listing',
+        listing: {
+          id: listing.id,
+          title: listing.title,
+          price: listing.price,
+          images: [], // Will be populated if needed
+          category: listing.category
+        },
+        otherUser: {
+          id: otherUser.id,
+          name: otherUser.user_metadata?.first_name 
+            ? `${otherUser.user_metadata.first_name} ${otherUser.user_metadata.last_name || ''}`.trim()
+            : otherUser.email || 'User',
+          email: otherUser.email || ''
+        },
+        messages: sortedMessages,
+        lastMessage,
+        lastActivity: new Date(lastMessage.created_at),
+        unreadCount
+      }
+      
+      conversations.push(conversation)
     }
-    
-    conversations.push(conversation)
   }
 
   // Sort by last activity (most recent first)

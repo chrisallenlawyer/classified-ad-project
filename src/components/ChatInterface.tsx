@@ -103,11 +103,19 @@ export function ChatInterface() {
     });
 
     try {
-      await sendMessageMutation.mutateAsync({
-        listingId: selectedConversation.listingId,
-        content: newMessage.trim(),
-        receiverId: selectedConversation.otherUserId
-      });
+      if (selectedConversation.messageType === 'support') {
+        await sendMessageMutation.mutateAsync({
+          content: newMessage.trim(),
+          messageType: 'support',
+          supportCategory: selectedConversation.supportCategory
+        });
+      } else {
+        await sendMessageMutation.mutateAsync({
+          listingId: selectedConversation.listingId,
+          content: newMessage.trim(),
+          receiverId: selectedConversation.otherUserId
+        });
+      }
       console.log('✅ Message sent successfully');
     } catch (error) {
       console.error('❌ Error sending message:', error);
@@ -245,7 +253,11 @@ export function ChatInterface() {
                 className="flex items-start space-x-3 cursor-pointer"
               >
                 <div className="flex-shrink-0">
-                  {conversation.listing.images?.[0] ? (
+                  {conversation.messageType === 'support' ? (
+                    <div className="h-10 w-10 rounded-lg bg-blue-600 flex items-center justify-center">
+                      <ChatBubbleLeftRightIcon className="h-5 w-5 text-white" />
+                    </div>
+                  ) : conversation.listing?.images?.[0] ? (
                     <img
                       src={conversation.listing.images[0]}
                       alt={conversation.listing.title}
@@ -276,7 +288,10 @@ export function ChatInterface() {
                   </div>
                   
                   <p className="text-sm text-gray-600 truncate mt-1">
-                    {conversation.listing.title}
+                    {conversation.messageType === 'support' 
+                      ? `Support: ${conversation.supportCategory?.replace('_', ' ')}`
+                      : conversation.listing?.title
+                    }
                   </p>
                   
                   <p className="text-xs text-gray-500 truncate mt-1">
@@ -301,20 +316,27 @@ export function ChatInterface() {
                     {selectedConversation.otherUser.name}
                   </h3>
                   <p className="text-sm text-gray-500">
-                    About: {selectedConversation.listing.title}
+                    {selectedConversation.messageType === 'support' 
+                      ? `Support: ${selectedConversation.supportCategory?.replace('_', ' ')}`
+                      : `About: ${selectedConversation.listing?.title}`
+                    }
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Listing Preview (Collapsible) */}
+            {/* Listing/Support Preview (Collapsible) */}
             <div className="border-b border-gray-200">
               <button
                 onClick={() => setIsListingPreviewCollapsed(!isListingPreviewCollapsed)}
                 className="w-full p-3 bg-gray-50 hover:bg-gray-100 transition-colors flex items-center justify-between"
               >
                 <div className="flex items-center space-x-3">
-                  {selectedConversation.listing.images?.[0] ? (
+                  {selectedConversation.messageType === 'support' ? (
+                    <div className="h-12 w-12 rounded-lg bg-blue-600 flex items-center justify-center">
+                      <ChatBubbleLeftRightIcon className="h-6 w-6 text-white" />
+                    </div>
+                  ) : selectedConversation.listing?.images?.[0] ? (
                     <img
                       src={selectedConversation.listing.images[0]}
                       alt={selectedConversation.listing.title}
@@ -327,30 +349,33 @@ export function ChatInterface() {
                   )}
                   
                   <div className="text-left">
-                    <p className="font-medium text-gray-900 truncate">
-                      {selectedConversation.listing.title}
+                    <p className="font-bold text-gray-900 truncate">
+                      {selectedConversation.messageType === 'support' 
+                        ? 'Support Conversation'
+                        : selectedConversation.listing?.title
+                      }
                     </p>
                     <p className="text-sm text-gray-600">
-                      ${selectedConversation.listing.price.toLocaleString()}
-                      {selectedConversation.listing.category && (
-                        <span className="ml-2 text-gray-400">
-                          • {selectedConversation.listing.category.name}
-                        </span>
-                      )}
+                      {selectedConversation.messageType === 'support' 
+                        ? `Category: ${selectedConversation.supportCategory?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}`
+                        : `$${selectedConversation.listing?.price.toLocaleString()}${selectedConversation.listing?.category ? ` • ${selectedConversation.listing.category.name}` : ''}`
+                      }
                     </p>
                   </div>
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  <a
-                    href={`/listing/${selectedConversation.listingId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1 text-gray-400 hover:text-gray-600"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-                  </a>
+                  {selectedConversation.messageType === 'listing' && (
+                    <a
+                      href={`/listing/${selectedConversation.listingId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1 text-gray-400 hover:text-gray-600"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                    </a>
+                  )}
                   {isListingPreviewCollapsed ? (
                     <ChevronDownIcon className="h-4 w-4 text-gray-400" />
                   ) : (
