@@ -1526,10 +1526,9 @@ export const archiveSupportConversation = async (conversationId: string): Promis
     throw new Error('No messages found to archive for this conversation');
   }
 
-  // Filter messages that belong to this conversation (involving the user)
-  const conversationMessages = messagesToArchive.filter(msg => 
-    msg.sender_id === userId || msg.receiver_id === userId
-  );
+  // For admins, archive ALL messages in the support category
+  // (since admins should be able to archive entire support conversations)
+  const conversationMessages = messagesToArchive;
 
   console.log('📁 Conversation messages to archive:', conversationMessages);
 
@@ -1590,10 +1589,9 @@ export const deleteSupportConversation = async (conversationId: string): Promise
     throw new Error('No messages found to delete for this conversation');
   }
 
-  // Filter messages that belong to this conversation (involving the user)
-  const conversationMessages = messagesToDelete.filter(msg => 
-    msg.sender_id === userId || msg.receiver_id === userId
-  );
+  // For admins, delete ALL messages in the support category
+  // (since admins should be able to delete entire support conversations)
+  const conversationMessages = messagesToDelete;
 
   console.log('🗑️ Conversation messages to delete:', conversationMessages);
 
