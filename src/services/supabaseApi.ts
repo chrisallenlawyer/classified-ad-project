@@ -1396,11 +1396,24 @@ export const getSupportConversations = async (): Promise<any[]> => {
     return []
   }
 
-  // Group messages by user and category
+  // Group messages by user and category (need to handle both user messages and admin replies)
   const conversationMap = new Map<string, Message[]>()
   
   supportMessages.forEach(message => {
-    const conversationKey = `${message.sender_id}|${message.support_category}`
+    // For support conversations, we need to group by the original user + category
+    // If message has receiver_id (admin reply), use receiver_id as the user
+    // If message has no receiver_id (user message), use sender_id as the user
+    const originalUserId = message.receiver_id || message.sender_id
+    const conversationKey = `${originalUserId}|${message.support_category}`
+    
+    console.log('📞 Grouping support message:', {
+      messageId: message.id.substring(0, 8),
+      senderId: message.sender_id.substring(0, 8),
+      receiverId: message.receiver_id?.substring(0, 8) || 'null',
+      originalUserId: originalUserId.substring(0, 8),
+      category: message.support_category,
+      conversationKey: conversationKey.substring(0, 20) + '...'
+    });
     
     if (!conversationMap.has(conversationKey)) {
       conversationMap.set(conversationKey, [])
@@ -1415,7 +1428,10 @@ export const getSupportConversations = async (): Promise<any[]> => {
     const [userId, category] = conversationKey.split('|')
     const sortedMessages = messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
     const lastMessage = sortedMessages[sortedMessages.length - 1]
-    const firstMessage = sortedMessages[0]
+    
+    // Find the original user message (the one with no receiver_id)
+    const userMessage = sortedMessages.find(msg => !msg.receiver_id)
+    const firstMessage = userMessage || sortedMessages[0]
     
     // Count unread messages (messages not read by admin)
     const unreadCount = sortedMessages.filter(msg => !msg.is_read).length
