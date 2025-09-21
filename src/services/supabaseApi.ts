@@ -799,6 +799,9 @@ export interface Message {
   sender_id: string
   receiver_id: string
   listing_id: string
+  message_type?: 'listing' | 'support'
+  support_category?: string
+  admin_assigned_to?: string
   isIncoming?: boolean
   isOutgoing?: boolean
   sender?: {
@@ -828,6 +831,8 @@ export interface Conversation {
   id: string
   listingId: string
   otherUserId: string
+  messageType: 'listing' | 'support'
+  supportCategory?: string
   listing: {
     id: string
     title: string
@@ -836,7 +841,7 @@ export interface Conversation {
     category?: {
       name: string
     }
-  }
+  } | null
   otherUser: {
     id: string
     name: string
@@ -849,9 +854,11 @@ export interface Conversation {
 }
 
 export interface SendMessageData {
-  listingId: string
+  listingId?: string
   content: string
   receiverId?: string
+  messageType?: 'listing' | 'support'
+  supportCategory?: string
 }
 
 export const sendMessage = async (messageData: SendMessageData): Promise<Message> => {

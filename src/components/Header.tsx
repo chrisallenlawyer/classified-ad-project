@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon, XMarkIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import { isUserAdmin } from '../services/supabaseApi';
+import { ContactSupportModal } from './ContactSupportModal';
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showSupportModal, setShowSupportModal] = useState(false);
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
 
@@ -47,6 +49,16 @@ export function Header() {
                     Admin
                   </Link>
                 )}
+                
+                {/* Contact Support Button */}
+                <button
+                  onClick={() => setShowSupportModal(true)}
+                  className="flex items-center space-x-1 text-gray-700 hover:text-primary-600 font-medium transition-colors"
+                >
+                  <ChatBubbleLeftRightIcon className="h-4 w-4" />
+                  <span>Contact Support</span>
+                </button>
+                
                 {user ? (
                   <div className="flex items-center space-x-4">
                     <span className="text-gray-700">
@@ -123,6 +135,19 @@ export function Header() {
                         Admin
                       </Link>
                     )}
+                    
+                    {/* Contact Support Button - Mobile */}
+                    <button
+                      onClick={() => {
+                        setShowSupportModal(true);
+                        setIsMenuOpen(false);
+                      }}
+                      className="flex items-center space-x-1 py-2 text-gray-700 hover:text-primary-600 font-medium transition-colors w-full text-left"
+                    >
+                      <ChatBubbleLeftRightIcon className="h-4 w-4" />
+                      <span>Contact Support</span>
+                    </button>
+                    
                     {user ? (
                       <div className="py-2">
                         <div className="text-gray-700 mb-2">
@@ -161,6 +186,12 @@ export function Header() {
           </div>
         )}
       </div>
+      
+      {/* Contact Support Modal */}
+      <ContactSupportModal 
+        isOpen={showSupportModal}
+        onClose={() => setShowSupportModal(false)}
+      />
     </header>
   );
 }
