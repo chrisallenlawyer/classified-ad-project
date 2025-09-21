@@ -1494,6 +1494,73 @@ export const sendSupportReply = async (conversationId: string, content: string):
   return message
 }
 
+export const archiveSupportConversation = async (conversationId: string): Promise<void> => {
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    throw new Error('User must be authenticated to archive support conversations')
+  }
+
+  // Check if user is admin
+  if (!isUserAdmin(user)) {
+    throw new Error('Only admins can archive support conversations')
+  }
+
+  console.log('📁 Archiving support conversation:', conversationId)
+  
+  const [userId, category] = conversationId.split('|')
+
+  // Mark all messages in this support conversation as archived
+  const { error } = await supabase
+    .from('messages')
+    .update({ 
+      deleted_at: new Date().toISOString(),
+      admin_assigned_to: user.id // Track which admin archived it
+    })
+    .eq('message_type', 'support')
+    .eq('support_category', category)
+    .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+
+  if (error) {
+    console.error('❌ Error archiving support conversation:', error)
+    throw new Error('Failed to archive support conversation: ' + error.message)
+  }
+
+  console.log('✅ Support conversation archived successfully:', conversationId)
+}
+
+export const deleteSupportConversation = async (conversationId: string): Promise<void> => {
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    throw new Error('User must be authenticated to delete support conversations')
+  }
+
+  // Check if user is admin
+  if (!isUserAdmin(user)) {
+    throw new Error('Only admins can delete support conversations')
+  }
+
+  console.log('🗑️ Permanently deleting support conversation:', conversationId)
+  
+  const [userId, category] = conversationId.split('|')
+
+  // Permanently delete all messages in this support conversation
+  const { error } = await supabase
+    .from('messages')
+    .delete()
+    .eq('message_type', 'support')
+    .eq('support_category', category)
+    .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+
+  if (error) {
+    console.error('❌ Error deleting support conversation:', error)
+    throw new Error('Failed to delete support conversation: ' + error.message)
+  }
+
+  console.log('✅ Support conversation deleted permanently:', conversationId)
+}
+
 export const deleteConversation = async (conversationId: string): Promise<void> => {
   const { data: { user } } = await supabase.auth.getUser()
   

@@ -10,9 +10,12 @@ import {
   CreditCardIcon,
   BugAntIcon,
   LightBulbIcon,
-  ClipboardDocumentListIcon
+  ClipboardDocumentListIcon,
+  ArchiveBoxIcon,
+  TrashIcon,
+  EllipsisVerticalIcon
 } from '@heroicons/react/24/outline';
-import { getSupportConversations, sendSupportReply, markMessageAsRead } from '../services/supabaseApi';
+import { getSupportConversations, sendSupportReply, markMessageAsRead, archiveSupportConversation, deleteSupportConversation } from '../services/supabaseApi';
 
 const categoryIcons: Record<string, { icon: any; color: string; name: string }> = {
   general: { icon: QuestionMarkCircleIcon, color: 'text-blue-600', name: 'General Question' },
@@ -30,6 +33,9 @@ export function SupportMessages() {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [replyMessage, setReplyMessage] = useState('');
   const [isReplying, setIsReplying] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [conversationToAction, setConversationToAction] = useState<string | null>(null);
 
   // Fetch support conversations
   const { data: conversations = [], isLoading, error } = useQuery(
@@ -60,6 +66,38 @@ export function SupportMessages() {
   const markAsReadMutation = useMutation(markMessageAsRead, {
     onSuccess: () => {
       queryClient.invalidateQueries('support-conversations');
+    },
+  });
+
+  // Archive conversation mutation
+  const archiveConversationMutation = useMutation(archiveSupportConversation, {
+    onSuccess: () => {
+      queryClient.invalidateQueries('support-conversations');
+      setShowArchiveModal(false);
+      setConversationToAction(null);
+      // Clear selection if we archived the selected conversation
+      if (conversationToAction === selectedConversationId) {
+        setSelectedConversationId(null);
+      }
+    },
+    onError: (error: any) => {
+      console.error('Failed to archive conversation:', error);
+    },
+  });
+
+  // Delete conversation mutation
+  const deleteConversationMutation = useMutation(deleteSupportConversation, {
+    onSuccess: () => {
+      queryClient.invalidateQueries('support-conversations');
+      setShowDeleteModal(false);
+      setConversationToAction(null);
+      // Clear selection if we deleted the selected conversation
+      if (conversationToAction === selectedConversationId) {
+        setSelectedConversationId(null);
+      }
+    },
+    onError: (error: any) => {
+      console.error('Failed to delete conversation:', error);
     },
   });
 
@@ -95,6 +133,34 @@ export function SupportMessages() {
       console.error('Error sending reply:', error);
       setIsReplying(false);
     }
+  };
+
+  const handleArchiveConversation = (conversationId: string) => {
+    setConversationToAction(conversationId);
+    setShowArchiveModal(true);
+  };
+
+  const handleDeleteConversation = (conversationId: string) => {
+    setConversationToAction(conversationId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmArchive = () => {
+    if (conversationToAction) {
+      archiveConversationMutation.mutate(conversationToAction);
+    }
+  };
+
+  const confirmDelete = () => {
+    if (conversationToAction) {
+      deleteConversationMutation.mutate(conversationToAction);
+    }
+  };
+
+  const cancelAction = () => {
+    setShowArchiveModal(false);
+    setShowDeleteModal(false);
+    setConversationToAction(null);
   };
 
   const formatTime = (dateString: string) => {
@@ -184,12 +250,39 @@ export function SupportMessages() {
             return (
               <div
                 key={conversation.id}
-                onClick={() => handleConversationSelect(conversation.id)}
-                className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
+                className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors relative group ${
                   selectedConversationId === conversation.id ? 'bg-blue-50 border-blue-200' : ''
                 }`}
               >
-                <div className="flex items-start space-x-3">
+                {/* Action Buttons - Archive and Delete */}
+                <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleArchiveConversation(conversation.id);
+                    }}
+                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                    title="Archive conversation"
+                  >
+                    <ArchiveBoxIcon className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteConversation(conversation.id);
+                    }}
+                    className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                    title="Delete conversation permanently"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Clickable Conversation Content */}
+                <div 
+                  onClick={() => handleConversationSelect(conversation.id)}
+                  className="flex items-start space-x-3 cursor-pointer"
+                >
                   <div className="flex-shrink-0">
                     <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center">
                       <IconComponent className={`h-5 w-5 ${categoryInfo.color}`} />
@@ -334,6 +427,92 @@ export function SupportMessages() {
           </div>
         )}
       </div>
+
+      {/* Archive Confirmation Modal */}
+      {showArchiveModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <ArchiveBoxIcon className="h-6 w-6 text-blue-600 mr-3" />
+              <h3 className="text-lg font-medium text-gray-900">Archive Conversation</h3>
+            </div>
+            
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to archive this support conversation? It will be removed from the active list but can be restored if needed.
+            </p>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={cancelAction}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                disabled={archiveConversationMutation.isLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmArchive}
+                className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 flex items-center space-x-2"
+                disabled={archiveConversationMutation.isLoading}
+              >
+                {archiveConversationMutation.isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Archiving...</span>
+                  </>
+                ) : (
+                  <>
+                    <ArchiveBoxIcon className="h-4 w-4" />
+                    <span>Archive</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <TrashIcon className="h-6 w-6 text-red-600 mr-3" />
+              <h3 className="text-lg font-medium text-gray-900">Delete Conversation</h3>
+            </div>
+            
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to permanently delete this support conversation? This action cannot be undone and will remove all messages in this conversation.
+            </p>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={cancelAction}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                disabled={deleteConversationMutation.isLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50 flex items-center space-x-2"
+                disabled={deleteConversationMutation.isLoading}
+              >
+                {deleteConversationMutation.isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <TrashIcon className="h-4 w-4" />
+                    <span>Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
