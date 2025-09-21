@@ -1287,6 +1287,18 @@ export const getSupportMessages = async (): Promise<Message[]> => {
     throw new Error('Only admins can view support messages')
   }
 
+  console.log('📞 Admin fetching support messages...');
+
+  // First, let's try to get all messages and see what columns exist
+  const { data: allMessages, error: allError } = await supabase
+    .from('messages')
+    .select('*')
+    .limit(5)
+
+  console.log('📞 Sample messages to check schema:', allMessages);
+  console.log('📞 Schema check error:', allError);
+
+  // Now try to get support messages
   const { data, error } = await supabase
     .from('messages')
     .select('*')
@@ -1294,14 +1306,19 @@ export const getSupportMessages = async (): Promise<Message[]> => {
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
+  console.log('📞 Support messages query result:', { data, error });
+
   if (error) {
     console.error('Error fetching support messages:', error)
     throw error
   }
 
   if (!data || data.length === 0) {
+    console.log('📞 No support messages found in database');
     return []
   }
+
+  console.log('📞 Found support messages:', data.length);
 
   // Process and return support messages with basic structure
   return data.map(message => ({
