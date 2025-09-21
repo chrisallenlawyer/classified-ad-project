@@ -959,6 +959,27 @@ export const sendMessage = async (messageData: SendMessageData): Promise<Message
   }
 
   console.log('✅ Message sent successfully:', message)
+  
+  // Debug: Check what was actually inserted
+  if (messageData.messageType === 'support') {
+    console.log('📞 Support message inserted - checking database result:', {
+      id: message.id,
+      message_type: message.message_type,
+      support_category: message.support_category,
+      listing_id: message.listing_id,
+      receiver_id: message.receiver_id
+    });
+    
+    // Double-check by querying the database directly
+    const { data: verifyMessage, error: verifyError } = await supabase
+      .from('messages')
+      .select('id, message_type, support_category, content')
+      .eq('id', message.id)
+      .single()
+      
+    console.log('📞 Database verification query result:', verifyMessage);
+    console.log('📞 Database verification error:', verifyError);
+  }
 
   // Handle email notifications based on message type
   if (messageData.messageType === 'support') {
