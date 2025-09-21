@@ -1407,12 +1407,12 @@ export const getSupportConversations = async (): Promise<any[]> => {
     const conversationKey = `${originalUserId}|${message.support_category}`
     
     console.log('📞 Grouping support message:', {
-      messageId: message.id.substring(0, 8),
-      senderId: message.sender_id.substring(0, 8),
+      messageId: message.id?.substring(0, 8) || 'null',
+      senderId: message.sender_id?.substring(0, 8) || 'null',
       receiverId: message.receiver_id?.substring(0, 8) || 'null',
-      originalUserId: originalUserId.substring(0, 8),
+      originalUserId: originalUserId?.substring(0, 8) || 'null',
       category: message.support_category,
-      conversationKey: conversationKey.substring(0, 20) + '...'
+      conversationKey: conversationKey?.substring(0, 20) + '...' || 'null'
     });
     
     if (!conversationMap.has(conversationKey)) {
