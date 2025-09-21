@@ -279,6 +279,128 @@ This is an automated notification from Bama Classifieds support system.
     }
   }
 
+  // Send guest support notification to admins (no database storage)
+  static async sendGuestSupportNotification(
+    guestName: string,
+    guestEmail: string,
+    category: string,
+    message: string
+  ): Promise<boolean> {
+    try {
+      console.log('👤 Sending guest support notification to admins:', {
+        guestName,
+        guestEmail,
+        category,
+        messagePreview: message.substring(0, 100)
+      });
+
+      // Get list of admin emails
+      const adminEmails = await this.getAdminEmails();
+      
+      if (!adminEmails.length) {
+        console.warn('👤 No admin emails found for guest support notifications');
+        return false;
+      }
+
+      const categoryName = category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+      
+      // Send individual emails to each admin
+      const emailPromises = adminEmails.map(async (adminEmail) => {
+        const template: EmailTemplate = {
+          to: adminEmail,
+          replyTo: guestEmail, // Important: Set reply-to to guest's email
+          subject: `👤 Guest Support Request: ${categoryName}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                <h1 style="color: white; margin: 0; font-size: 24px;">👤 Guest Support Request</h1>
+                <p style="color: #FEF3C7; margin: 10px 0 0 0; font-size: 16px;">From a visitor who needs help</p>
+              </div>
+              
+              <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+                <div style="background: white; padding: 25px; border-radius: 8px; margin-bottom: 20px;">
+                  <h2 style="color: #1F2937; margin: 0 0 15px 0; font-size: 18px;">Guest Support Request</h2>
+                  
+                  <div style="margin-bottom: 15px;">
+                    <strong style="color: #374151;">Category:</strong> 
+                    <span style="background: #F59E0B; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 8px;">
+                      ${categoryName}
+                    </span>
+                  </div>
+                  
+                  <div style="margin-bottom: 15px;">
+                    <strong style="color: #374151;">Name:</strong> ${guestName}
+                  </div>
+                  
+                  <div style="margin-bottom: 15px;">
+                    <strong style="color: #374151;">Email:</strong> 
+                    <a href="mailto:${guestEmail}" style="color: #3B82F6; text-decoration: none;">
+                      ${guestEmail}
+                    </a>
+                  </div>
+                  
+                  <div style="margin-bottom: 20px;">
+                    <strong style="color: #374151;">Message:</strong>
+                    <div style="background: #F3F4F6; padding: 15px; border-radius: 6px; margin-top: 8px; border-left: 4px solid #F59E0B;">
+                      ${message}
+                    </div>
+                  </div>
+                  
+                  <div style="background: #FEF3C7; border: 1px solid #F59E0B; padding: 15px; border-radius: 6px;">
+                    <p style="color: #92400E; margin: 0; font-size: 14px;">
+                      <strong>Note:</strong> This is a guest user who is not logged in. 
+                      Reply directly to this email to respond to them.
+                    </p>
+                  </div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 25px;">
+                  <a href="mailto:${guestEmail}?subject=Re: ${categoryName} Support Request" 
+                     style="background: #F59E0B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+                    📧 Reply to ${guestName}
+                  </a>
+                </div>
+                
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #E5E7EB; text-align: center;">
+                  <p style="color: #6B7280; font-size: 12px; margin: 0;">
+                    This is a guest support request from Bama Classifieds. Reply directly to this email.
+                  </p>
+                </div>
+              </div>
+            </div>
+          `,
+          text: `
+Guest Support Request - ${categoryName}
+
+Name: ${guestName}
+Email: ${guestEmail}
+Category: ${categoryName}
+
+Message:
+${message}
+
+Note: This is a guest user who is not logged in. Reply directly to this email to respond to them.
+
+Reply to: ${guestEmail}
+          `
+        };
+
+        return await this.sendEmail(template);
+      });
+
+      // Wait for all emails to send
+      const results = await Promise.all(emailPromises);
+      const successCount = results.filter(result => result).length;
+      
+      console.log(`👤 Guest support notifications sent: ${successCount}/${adminEmails.length} admins notified`);
+      
+      return successCount > 0;
+    } catch (error) {
+      console.error('👤 Error sending guest support notification to admins:', error);
+      return false;
+    }
+  }
+
   // Send email using database template (with fallback to hardcoded)
   static async sendEmailWithTemplate(
     templateName: string, 
