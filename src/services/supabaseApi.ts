@@ -1299,6 +1299,8 @@ export const getSupportMessages = async (): Promise<Message[]> => {
   console.log('📞 Schema check error:', allError);
 
   // Now try to get support messages
+  console.log('📞 Querying for messages where message_type = "support"...');
+  
   const { data, error } = await supabase
     .from('messages')
     .select('*')
@@ -1307,6 +1309,7 @@ export const getSupportMessages = async (): Promise<Message[]> => {
     .order('created_at', { ascending: false })
 
   console.log('📞 Support messages query result:', { data, error });
+  console.log('📞 Support query returned', data?.length || 0, 'messages');
   
   // Also try to get ALL messages to see if any have message_type = 'support'
   const { data: allWithType, error: typeError } = await supabase
@@ -1318,6 +1321,18 @@ export const getSupportMessages = async (): Promise<Message[]> => {
     
   console.log('📞 All messages with message_type:', allWithType);
   console.log('📞 Message type query error:', typeError);
+  
+  // Log specific details about message types
+  if (allWithType) {
+    allWithType.forEach((msg, index) => {
+      console.log(`📞 Message ${index}:`, {
+        id: msg.id.substring(0, 8),
+        message_type: msg.message_type,
+        support_category: msg.support_category,
+        content_preview: msg.content.substring(0, 30)
+      });
+    });
+  }
 
   if (error) {
     console.error('Error fetching support messages:', error)
