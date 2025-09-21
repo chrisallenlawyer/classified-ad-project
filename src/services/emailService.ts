@@ -182,9 +182,11 @@ export class EmailService {
 
       const categoryName = category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
       
-      const template: EmailTemplate = {
-        to: adminEmails.join(','), // Send to all admins
-        subject: `🎧 New Support Request: ${categoryName}`,
+      // Send individual emails to each admin (Resend doesn't like comma-separated emails)
+      const emailPromises = adminEmails.map(async (adminEmail) => {
+        const template: EmailTemplate = {
+          to: adminEmail,
+          subject: `🎧 New Support Request: ${categoryName}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
@@ -243,17 +245,18 @@ Please respond in the admin dashboard: https://bamaclassifieds.com/admin
 
 This is an automated notification from Bama Classifieds support system.
         `
-      };
+        };
 
-      const success = await this.sendEmail(template);
+        return await this.sendEmail(template);
+      });
+
+      // Wait for all emails to send
+      const results = await Promise.all(emailPromises);
+      const successCount = results.filter(result => result).length;
       
-      if (success) {
-        console.log('📞 Support notification sent to all admins successfully');
-        return true;
-      } else {
-        console.error('📞 Failed to send support notification to admins');
-        return false;
-      }
+      console.log(`📞 Support notifications sent: ${successCount}/${adminEmails.length} admins notified`);
+      
+      return successCount > 0;
     } catch (error) {
       console.error('📞 Error sending support notification to admins:', error);
       return false;

@@ -1307,6 +1307,17 @@ export const getSupportMessages = async (): Promise<Message[]> => {
     .order('created_at', { ascending: false })
 
   console.log('📞 Support messages query result:', { data, error });
+  
+  // Also try to get ALL messages to see if any have message_type = 'support'
+  const { data: allWithType, error: typeError } = await supabase
+    .from('messages')
+    .select('id, message_type, support_category, content, created_at')
+    .not('message_type', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(10)
+    
+  console.log('📞 All messages with message_type:', allWithType);
+  console.log('📞 Message type query error:', typeError);
 
   if (error) {
     console.error('Error fetching support messages:', error)
