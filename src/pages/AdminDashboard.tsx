@@ -12,9 +12,11 @@ import {
   ListBulletIcon,
   EnvelopeIcon,
   CheckIcon,
-  XMarkIcon
+  XMarkIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 import { getCategories, createCategory, updateCategory, deleteCategory, getListings, updateListing, deleteListing, getUsers, updateUserRole, isUserAdmin } from '../services/supabaseApi';
+import { SupportMessages } from '../components/SupportMessages';
 import { useAuth } from '../contexts/AuthContext';
 import { ColorPaletteManager } from '../components/ColorPaletteManager';
 import CollapsibleSection from '../components/CollapsibleSection';
@@ -76,6 +78,7 @@ export function AdminDashboard() {
     pricing: false,
     users: false,
     listings: false,
+    support: false,
     email: false
   });
 
@@ -1098,6 +1101,22 @@ export function AdminDashboard() {
               </div>
             </div>
           )}
+        </div>
+      </CollapsibleSection>
+
+      {/* Support Messages Section */}
+      <CollapsibleSection
+        title="Support Messages"
+        icon={<ChatBubbleLeftRightIcon className="h-6 w-6 text-primary-600" />}
+        isExpanded={expandedSections.support}
+        onToggle={() => toggleSection('support')}
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-gray-600">View and respond to user support requests and help desk messages.</p>
+          </div>
+          
+          <SupportMessages />
         </div>
       </CollapsibleSection>
 

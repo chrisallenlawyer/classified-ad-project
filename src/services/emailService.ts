@@ -143,9 +143,9 @@ export class EmailService {
       // For now, we'll use a simple approach since we can't directly query auth.users
       // We'll assume notifications are enabled by default
       // In the future, we can add a user_preferences table
-      
+
       console.log('📧 Checking email preferences for user:', userId);
-      
+
       // Default to true (notifications enabled) for now
       // This can be enhanced later with a dedicated user preferences system
       return true;
@@ -153,6 +153,125 @@ export class EmailService {
       console.error('📧 Error checking user email preferences:', error);
       // Default to true if we can't check preferences
       return true;
+    }
+  }
+
+  // Send support notification to all admins
+  static async sendSupportNotificationToAdmins(
+    userEmail: string,
+    userName: string,
+    category: string,
+    message: string,
+    messageId: string
+  ): Promise<boolean> {
+    try {
+      console.log('📞 Sending support notification to admins:', {
+        userEmail,
+        userName,
+        category,
+        messagePreview: message.substring(0, 100)
+      });
+
+      // Get list of admin emails (we'll need to implement this)
+      const adminEmails = await this.getAdminEmails();
+      
+      if (!adminEmails.length) {
+        console.warn('📞 No admin emails found for support notifications');
+        return false;
+      }
+
+      const categoryName = category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+      
+      const template: EmailTemplate = {
+        to: adminEmails.join(','), // Send to all admins
+        subject: `🎧 New Support Request: ${categoryName}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0; font-size: 24px;">🎧 New Support Request</h1>
+              <p style="color: #E0E7FF; margin: 10px 0 0 0; font-size: 16px;">A user needs assistance</p>
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+              <div style="background: white; padding: 25px; border-radius: 8px; margin-bottom: 20px;">
+                <h2 style="color: #1F2937; margin: 0 0 15px 0; font-size: 18px;">Support Request Details</h2>
+                
+                <div style="margin-bottom: 15px;">
+                  <strong style="color: #374151;">Category:</strong> 
+                  <span style="background: #3B82F6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 8px;">
+                    ${categoryName}
+                  </span>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                  <strong style="color: #374151;">From:</strong> ${userName} (${userEmail})
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                  <strong style="color: #374151;">Message:</strong>
+                  <div style="background: #F3F4F6; padding: 15px; border-radius: 6px; margin-top: 8px; border-left: 4px solid #3B82F6;">
+                    ${message}
+                  </div>
+                </div>
+              </div>
+              
+              <div style="text-align: center; margin-top: 25px;">
+                <a href="https://bamaclassifieds.com/admin" 
+                   style="background: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+                  📧 Respond in Admin Dashboard
+                </a>
+              </div>
+              
+              <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #E5E7EB; text-align: center;">
+                <p style="color: #6B7280; font-size: 12px; margin: 0;">
+                  This is an automated notification from Bama Classifieds support system.
+                </p>
+              </div>
+            </div>
+          </div>
+        `,
+        text: `
+New Support Request - ${categoryName}
+
+From: ${userName} (${userEmail})
+Category: ${categoryName}
+
+Message:
+${message}
+
+Please respond in the admin dashboard: https://bamaclassifieds.com/admin
+
+This is an automated notification from Bama Classifieds support system.
+        `
+      };
+
+      const success = await this.sendEmail(template);
+      
+      if (success) {
+        console.log('📞 Support notification sent to all admins successfully');
+        return true;
+      } else {
+        console.error('📞 Failed to send support notification to admins');
+        return false;
+      }
+    } catch (error) {
+      console.error('📞 Error sending support notification to admins:', error);
+      return false;
+    }
+  }
+
+  // Get list of admin email addresses
+  static async getAdminEmails(): Promise<string[]> {
+    try {
+      // For now, return a hardcoded list of admin emails
+      // In the future, this could query the database for users with admin roles
+      return [
+        'chrisallenlawyer@gmail.com', // Main admin
+        // Add other admin emails here as needed
+      ];
+    } catch (error) {
+      console.error('📞 Error getting admin emails:', error);
+      return [];
     }
   }
 

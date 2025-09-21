@@ -962,9 +962,29 @@ export const sendMessage = async (messageData: SendMessageData): Promise<Message
 
   // Handle email notifications based on message type
   if (messageData.messageType === 'support') {
-    console.log('📞 Support message created - will notify admins');
-    // TODO: Send email notifications to all admins
-    // This will be implemented in the next step
+    console.log('📞 Support message created - notifying admins');
+    
+    // Send email notifications to all admins
+    try {
+      const { sendSupportNotificationToAdmins } = await import('./emailService');
+      
+      const userName = user.user_metadata?.first_name && user.user_metadata?.last_name 
+        ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
+        : user.email || 'User';
+
+      await sendSupportNotificationToAdmins(
+        user.email || '',
+        userName,
+        messageData.supportCategory || 'general',
+        messageData.content,
+        message.id
+      );
+      
+      console.log('📞 Admin notifications sent successfully');
+    } catch (emailError) {
+      console.error('📞 Failed to send admin notifications:', emailError);
+      // Don't block support message creation if email fails
+    }
   } else {
     // Send email notification for listing messages
     const emailRecipientId = receiverId;
@@ -1252,6 +1272,153 @@ export const getConversations = async (): Promise<Conversation[]> => {
 export const getConversationById = async (conversationId: string): Promise<Conversation | null> => {
   const conversations = await getConversations()
   return conversations.find(conv => conv.id === conversationId) || null
+}
+
+// Support messaging functions for admins
+export const getSupportMessages = async (): Promise<Message[]> => {
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    throw new Error('User must be authenticated to view support messages')
+  }
+
+  // Check if user is admin
+  if (!isUserAdmin(user)) {
+    throw new Error('Only admins can view support messages')
+  }
+
+  const { data, error } = await supabase
+    .from('messages')
+    .select(`
+      *,
+      sender:sender_id(
+        id,
+        email,
+        raw_user_meta_data
+      )
+    `)
+    .eq('message_type', 'support')
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('Error fetching support messages:', error)
+    throw error
+  }
+
+  if (!data || data.length === 0) {
+    return []
+  }
+
+  // Process and return support messages
+  return data.map(message => ({
+    ...message,
+    sender: message.sender ? {
+      id: message.sender.id,
+      email: message.sender.email,
+      user_metadata: message.sender.raw_user_meta_data || {}
+    } : undefined
+  }))
+}
+
+export const getSupportConversations = async (): Promise<any[]> => {
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    throw new Error('User must be authenticated to view support conversations')
+  }
+
+  // Check if user is admin
+  if (!isUserAdmin(user)) {
+    throw new Error('Only admins can view support conversations')
+  }
+
+  const supportMessages = await getSupportMessages()
+  
+  if (!supportMessages.length) {
+    return []
+  }
+
+  // Group messages by user and category
+  const conversationMap = new Map<string, Message[]>()
+  
+  supportMessages.forEach(message => {
+    const conversationKey = `${message.sender_id}|${message.support_category}`
+    
+    if (!conversationMap.has(conversationKey)) {
+      conversationMap.set(conversationKey, [])
+    }
+    conversationMap.get(conversationKey)!.push(message)
+  })
+
+  // Convert to conversation objects
+  const conversations: any[] = []
+  
+  for (const [conversationKey, messages] of conversationMap.entries()) {
+    const [userId, category] = conversationKey.split('|')
+    const sortedMessages = messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    const lastMessage = sortedMessages[sortedMessages.length - 1]
+    const firstMessage = sortedMessages[0]
+    
+    // Count unread messages (messages not read by admin)
+    const unreadCount = sortedMessages.filter(msg => !msg.is_read).length
+
+    const conversation = {
+      id: conversationKey,
+      userId,
+      category,
+      user: firstMessage.sender,
+      messages: sortedMessages,
+      lastMessage,
+      firstMessage,
+      lastActivity: new Date(lastMessage.created_at),
+      unreadCount,
+      messageCount: sortedMessages.length
+    }
+    
+    conversations.push(conversation)
+  }
+
+  // Sort by last activity (most recent first)
+  return conversations.sort((a, b) => b.lastActivity.getTime() - a.lastActivity.getTime())
+}
+
+export const sendSupportReply = async (conversationId: string, content: string): Promise<Message> => {
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    throw new Error('User must be authenticated to send support replies')
+  }
+
+  // Check if user is admin
+  if (!isUserAdmin(user)) {
+    throw new Error('Only admins can send support replies')
+  }
+
+  const [userId, category] = conversationId.split('|')
+
+  const messagePayload = {
+    content: content.trim(),
+    sender_id: user.id,
+    receiver_id: userId, // Reply goes to the original user
+    listing_id: null,
+    message_type: 'support',
+    support_category: category
+  }
+
+  const { data: message, error } = await supabase
+    .from('messages')
+    .insert([messagePayload])
+    .select('*')
+    .single()
+
+  if (error) {
+    console.error('❌ Error sending support reply:', error)
+    throw new Error('Failed to send support reply: ' + error.message)
+  }
+
+  console.log('✅ Support reply sent successfully:', message)
+  return message
 }
 
 export const deleteConversation = async (conversationId: string): Promise<void> => {
