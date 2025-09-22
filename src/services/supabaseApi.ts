@@ -1185,20 +1185,40 @@ export const getConversations = async (): Promise<Conversation[]> => {
   }
 
   console.log('📱 getConversations: Filtering for LISTING messages only (user dashboard)')
+  console.log('📱 getConversations: Total messages retrieved:', allMessages.length)
+  
+  // Debug: Log message types
+  const messageTypes = allMessages.reduce((acc, msg) => {
+    acc[msg.message_type || 'undefined'] = (acc[msg.message_type || 'undefined'] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+  console.log('📱 getConversations: Message types breakdown:', messageTypes)
 
   // Group messages by conversation - ONLY LISTING CONVERSATIONS for user dashboard
   const conversationMap = new Map<string, Message[]>()
   
   allMessages.forEach(message => {
+    console.log('📱 Processing message:', {
+      id: message.id?.substring(0, 8),
+      type: message.message_type,
+      listing_id: message.listing_id?.substring(0, 8) || 'null',
+      sender_id: message.sender_id?.substring(0, 8),
+      receiver_id: message.receiver_id?.substring(0, 8)
+    })
+    
     // ONLY include listing messages in user dashboard conversations
     if (message.message_type === 'listing') {
       const otherUserId = message.sender_id === user.id ? message.receiver_id : message.sender_id
       const conversationKey = `${message.listing_id}|${otherUserId}`
       
+      console.log('📱 Adding listing message to conversation:', conversationKey)
+      
       if (!conversationMap.has(conversationKey)) {
         conversationMap.set(conversationKey, [])
       }
       conversationMap.get(conversationKey)!.push(message)
+    } else {
+      console.log('📱 Skipping non-listing message:', message.message_type)
     }
     // Skip support messages - they should only appear in admin dashboard via getSupportConversations()
   })
@@ -1207,6 +1227,8 @@ export const getConversations = async (): Promise<Conversation[]> => {
   const conversations: Conversation[] = []
   
   for (const [conversationKey, messages] of conversationMap.entries()) {
+    console.log('📱 Processing conversation:', conversationKey, 'with', messages.length, 'messages')
+    
     const sortedMessages = messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
     const lastMessage = sortedMessages[sortedMessages.length - 1]
     
@@ -1215,11 +1237,19 @@ export const getConversations = async (): Promise<Conversation[]> => {
     
     // Get listing info
     const listing = lastMessage.listing
-    if (!listing) continue
+    if (!listing) {
+      console.log('📱 Skipping conversation - no listing info:', conversationKey)
+      continue
+    }
     
     // Get other user info
     const otherUser = lastMessage.sender_id === user.id ? lastMessage.receiver : lastMessage.sender
-    if (!otherUser) continue
+    if (!otherUser) {
+      console.log('📱 Skipping conversation - no other user info:', conversationKey)
+      continue
+    }
+    
+    console.log('📱 Building conversation object for:', conversationKey)
     
     // Count unread messages (messages received by current user that are unread)
     const unreadCount = sortedMessages.filter(msg => 
@@ -1254,6 +1284,7 @@ export const getConversations = async (): Promise<Conversation[]> => {
     conversations.push(conversation)
   }
 
+  console.log('📱 getConversations: Built', conversations.length, 'conversation objects')
   console.log('📱 getConversations: Returning', conversations.length, 'listing conversations for user dashboard')
   
   // Sort by last activity (most recent first)
