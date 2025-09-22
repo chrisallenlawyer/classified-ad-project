@@ -12,9 +12,11 @@ import {
   CurrencyDollarIcon,
   TagIcon,
   MapPinIcon,
-  EnvelopeIcon
+  EnvelopeIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 import { ChatInterface } from '../components/ChatInterface';
+import { SupportChatInterface } from '../components/SupportChatInterface';
 import { NotificationSettings } from '../components/NotificationSettings';
 
 export function SellerDashboard() {
@@ -23,7 +25,7 @@ export function SellerDashboard() {
   const queryClient = useQueryClient();
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'listings' | 'messages' | 'watched'>('listings');
+  const [activeTab, setActiveTab] = useState<'listings' | 'messages' | 'support' | 'watched'>('listings');
 
   // Fetch user's listings
   const { data: listings, isLoading, error } = useQuery(
@@ -254,6 +256,17 @@ export function SellerDashboard() {
                 )}
               </button>
               <button
+                onClick={() => setActiveTab('support')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'support'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <ChatBubbleLeftRightIcon className="h-5 w-5 inline mr-2" />
+                Support Messages
+              </button>
+              <button
                 onClick={() => setActiveTab('watched')}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'watched'
@@ -462,6 +475,12 @@ export function SellerDashboard() {
             </div>
             
             <NotificationSettings />
+          </div>
+        ) : activeTab === 'support' ? (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow">
+              <SupportChatInterface />
+            </div>
           </div>
         ) : activeTab === 'watched' ? (
           <div className="bg-white rounded-lg shadow">

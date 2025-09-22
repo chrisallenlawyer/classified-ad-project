@@ -10,7 +10,7 @@ import {
   TrashIcon,
   EllipsisVerticalIcon
 } from '@heroicons/react/24/outline';
-import { getConversations, getUserSupportConversations, sendMessage, markMessageAsRead, deleteConversation, Conversation, Message } from '../services/supabaseApi';
+import { getConversations, sendMessage, markMessageAsRead, deleteConversation, Conversation, Message } from '../services/supabaseApi';
 import { useAuth } from '../contexts/AuthContext';
 
 export function ChatInterface() {
@@ -24,31 +24,14 @@ export function ChatInterface() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
 
-  // Fetch listing conversations
-  const { data: listingConversations = [], isLoading: isLoadingListing, error: listingError } = useQuery(
+  // Fetch listing conversations only (support conversations are now in separate tab)
+  const { data: conversations = [], isLoading, error } = useQuery(
     'conversations',
     getConversations,
     {
       refetchInterval: 30000, // Refetch every 30 seconds
     }
   );
-
-  // Fetch user's own support conversations
-  const { data: supportConversations = [], isLoading: isLoadingSupport, error: supportError } = useQuery(
-    'userSupportConversations',
-    getUserSupportConversations,
-    {
-      refetchInterval: 30000, // Refetch every 30 seconds
-    }
-  );
-
-  // Combine both types of conversations for user dashboard
-  const conversations = [...listingConversations, ...supportConversations].sort(
-    (a, b) => b.lastActivity.getTime() - a.lastActivity.getTime()
-  );
-
-  const isLoading = isLoadingListing || isLoadingSupport;
-  const error = listingError || supportError;
 
   // Auto-select first conversation if none selected
   useEffect(() => {
@@ -73,7 +56,6 @@ export function ChatInterface() {
   const sendMessageMutation = useMutation(sendMessage, {
     onSuccess: () => {
       queryClient.invalidateQueries('conversations');
-      queryClient.invalidateQueries('userSupportConversations');
       setNewMessage('');
       setTimeout(scrollToBottom, 100);
     },
@@ -86,7 +68,6 @@ export function ChatInterface() {
   const markAsReadMutation = useMutation(markMessageAsRead, {
     onSuccess: () => {
       queryClient.invalidateQueries('conversations');
-      queryClient.invalidateQueries('userSupportConversations');
     },
   });
 
@@ -94,7 +75,6 @@ export function ChatInterface() {
   const deleteConversationMutation = useMutation(deleteConversation, {
     onSuccess: () => {
       queryClient.invalidateQueries('conversations');
-      queryClient.invalidateQueries('userSupportConversations');
       setShowDeleteModal(false);
       setConversationToDelete(null);
       // If we deleted the currently selected conversation, clear selection
