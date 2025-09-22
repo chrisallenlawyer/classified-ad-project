@@ -1184,25 +1184,23 @@ export const getConversations = async (): Promise<Conversation[]> => {
     return []
   }
 
-  // Group messages by conversation (listing + other person OR support category)
+  console.log('📱 getConversations: Filtering for LISTING messages only (user dashboard)')
+
+  // Group messages by conversation - ONLY LISTING CONVERSATIONS for user dashboard
   const conversationMap = new Map<string, Message[]>()
   
   allMessages.forEach(message => {
-    let conversationKey: string
-    
-    if (message.message_type === 'support') {
-      // Support conversations are grouped by category
-      conversationKey = `support|${message.support_category}`
-    } else {
-      // Regular listing conversations
+    // ONLY include listing messages in user dashboard conversations
+    if (message.message_type === 'listing') {
       const otherUserId = message.sender_id === user.id ? message.receiver_id : message.sender_id
-      conversationKey = `${message.listing_id}|${otherUserId}`
+      const conversationKey = `${message.listing_id}|${otherUserId}`
+      
+      if (!conversationMap.has(conversationKey)) {
+        conversationMap.set(conversationKey, [])
+      }
+      conversationMap.get(conversationKey)!.push(message)
     }
-    
-    if (!conversationMap.has(conversationKey)) {
-      conversationMap.set(conversationKey, [])
-    }
-    conversationMap.get(conversationKey)!.push(message)
+    // Skip support messages - they should only appear in admin dashboard via getSupportConversations()
   })
 
   // Convert to Conversation objects
@@ -1212,80 +1210,126 @@ export const getConversations = async (): Promise<Conversation[]> => {
     const sortedMessages = messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
     const lastMessage = sortedMessages[sortedMessages.length - 1]
     
-    if (conversationKey.startsWith('support|')) {
-      // Handle support conversations
-      const supportCategory = conversationKey.split('|')[1]
-      
-      // Count unread messages (support messages from admins that are unread)
-      const unreadCount = sortedMessages.filter(msg => 
-        msg.sender_id !== user.id && !msg.is_read
-      ).length
+    // Handle regular listing conversations only
+    const [listingId, otherUserId] = conversationKey.split('|')
+    
+    // Get listing info
+    const listing = lastMessage.listing
+    if (!listing) continue
+    
+    // Get other user info
+    const otherUser = lastMessage.sender_id === user.id ? lastMessage.receiver : lastMessage.sender
+    if (!otherUser) continue
+    
+    // Count unread messages (messages received by current user that are unread)
+    const unreadCount = sortedMessages.filter(msg => 
+      msg.receiver_id === user.id && !msg.is_read
+    ).length
 
-      const conversation: Conversation = {
-        id: conversationKey,
-        listingId: '',
-        otherUserId: 'admin',
-        messageType: 'support',
-        supportCategory,
-        listing: null,
-        otherUser: {
-          id: 'admin',
-          name: 'Support Team',
-          email: 'support@bamaclassifieds.com'
-        },
-        messages: sortedMessages,
-        lastMessage,
-        lastActivity: new Date(lastMessage.created_at),
-        unreadCount
-      }
-      
-      conversations.push(conversation)
-    } else {
-      // Handle regular listing conversations
-      const [listingId, otherUserId] = conversationKey.split('|')
-      
-      // Get listing info
-      const listing = lastMessage.listing
-      if (!listing) continue
-      
-      // Get other user info
-      const otherUser = lastMessage.sender_id === user.id ? lastMessage.receiver : lastMessage.sender
-      if (!otherUser) continue
-      
-      // Count unread messages (messages received by current user that are unread)
-      const unreadCount = sortedMessages.filter(msg => 
-        msg.receiver_id === user.id && !msg.is_read
-      ).length
-
-      const conversation: Conversation = {
-        id: conversationKey,
-        listingId,
-        otherUserId,
-        messageType: 'listing',
-        listing: {
-          id: listing.id,
-          title: listing.title,
-          price: listing.price,
-          images: [], // Will be populated if needed
-          category: listing.category
-        },
-        otherUser: {
-          id: otherUser.id,
-          name: otherUser.user_metadata?.first_name 
-            ? `${otherUser.user_metadata.first_name} ${otherUser.user_metadata.last_name || ''}`.trim()
-            : otherUser.email || 'User',
-          email: otherUser.email || ''
-        },
-        messages: sortedMessages,
-        lastMessage,
-        lastActivity: new Date(lastMessage.created_at),
-        unreadCount
-      }
-      
-      conversations.push(conversation)
+    const conversation: Conversation = {
+      id: conversationKey,
+      listingId,
+      otherUserId,
+      messageType: 'listing',
+      listing: {
+        id: listing.id,
+        title: listing.title,
+        price: listing.price,
+        images: [], // Will be populated if needed
+        category: listing.category
+      },
+      otherUser: {
+        id: otherUser.id,
+        name: otherUser.user_metadata?.first_name 
+          ? `${otherUser.user_metadata.first_name} ${otherUser.user_metadata.last_name || ''}`.trim()
+          : otherUser.email || 'User',
+        email: otherUser.email || ''
+      },
+      messages: sortedMessages,
+      lastMessage,
+      lastActivity: new Date(lastMessage.created_at),
+      unreadCount
     }
+    
+    conversations.push(conversation)
   }
 
+  console.log('📱 getConversations: Returning', conversations.length, 'listing conversations for user dashboard')
+  
+  // Sort by last activity (most recent first)
+  return conversations.sort((a, b) => b.lastActivity.getTime() - a.lastActivity.getTime())
+}
+
+// New function for user support conversations (shows in user dashboard alongside listing conversations)
+export const getUserSupportConversations = async (): Promise<Conversation[]> => {
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    throw new Error('User must be authenticated to view support conversations')
+  }
+
+  // Get all messages for the user
+  const allMessages = await getUserMessages()
+  
+  if (!allMessages.length) {
+    return []
+  }
+
+  console.log('📞 getUserSupportConversations: Filtering for user\'s OWN support conversations')
+
+  // Group messages by conversation - ONLY SUPPORT CONVERSATIONS where user is involved
+  const conversationMap = new Map<string, Message[]>()
+  
+  allMessages.forEach(message => {
+    // Include support messages where user is involved (either as sender OR receiver)
+    if (message.message_type === 'support' && 
+        (message.sender_id === user.id || message.receiver_id === user.id)) {
+      const conversationKey = `support|${message.support_category}`
+      
+      if (!conversationMap.has(conversationKey)) {
+        conversationMap.set(conversationKey, [])
+      }
+      conversationMap.get(conversationKey)!.push(message)
+    }
+  })
+
+  // Convert to Conversation objects
+  const conversations: Conversation[] = []
+  
+  for (const [conversationKey, messages] of conversationMap.entries()) {
+    const sortedMessages = messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    const lastMessage = sortedMessages[sortedMessages.length - 1]
+    
+    const supportCategory = conversationKey.split('|')[1]
+    
+    // Count unread messages (support messages from admins that are unread)
+    const unreadCount = sortedMessages.filter(msg => 
+      msg.sender_id !== user.id && !msg.is_read
+    ).length
+
+    const conversation: Conversation = {
+      id: conversationKey,
+      listingId: '',
+      otherUserId: 'admin',
+      messageType: 'support',
+      supportCategory,
+      listing: null,
+      otherUser: {
+        id: 'admin',
+        name: 'Support Team',
+        email: 'support@bamaclassifieds.com'
+      },
+      messages: sortedMessages,
+      lastMessage,
+      lastActivity: new Date(lastMessage.created_at),
+      unreadCount
+    }
+    
+    conversations.push(conversation)
+  }
+
+  console.log('📞 getUserSupportConversations: Returning', conversations.length, 'support conversations for user')
+  
   // Sort by last activity (most recent first)
   return conversations.sort((a, b) => b.lastActivity.getTime() - a.lastActivity.getTime())
 }
