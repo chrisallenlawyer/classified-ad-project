@@ -1112,12 +1112,19 @@ export const getUserMessages = async (): Promise<Message[]> => {
     return []
   }
 
-  // Get listing info for each message
-  const listingIds = [...new Set(data.map(msg => msg.listing_id))]
-  const { data: listings } = await supabase
+  // Get listing info for each message (filter out null listing_ids from support messages)
+  const listingIds = [...new Set(data.map(msg => msg.listing_id).filter(Boolean))]
+  console.log('📱 getUserMessages: Listing IDs to fetch:', listingIds)
+  
+  const { data: listings, error: listingsError } = await supabase
     .from('listings')
     .select('id, title, price, category_id')
     .in('id', listingIds)
+  
+  console.log('📱 getUserMessages: Fetched listings:', listings?.length || 0, 'listings')
+  if (listingsError) {
+    console.error('📱 getUserMessages: Error fetching listings:', listingsError)
+  }
 
   // Get category info for listings
   const categoryIds = [...new Set(listings?.map(l => l.category_id).filter(Boolean) || [])]
