@@ -1268,6 +1268,12 @@ export const getUserSupportConversations = async (): Promise<Conversation[]> => 
     throw new Error('User must be authenticated to view support conversations')
   }
 
+  // Check if user is admin - admins should NOT see support conversations in their user dashboard
+  if (isUserAdmin(user)) {
+    console.log('📞 getUserSupportConversations: User is admin - returning empty array (admins use admin dashboard for support)')
+    return []
+  }
+
   // Get all messages for the user
   const allMessages = await getUserMessages()
   
@@ -1275,7 +1281,7 @@ export const getUserSupportConversations = async (): Promise<Conversation[]> => 
     return []
   }
 
-  console.log('📞 getUserSupportConversations: Filtering for user\'s OWN support conversations')
+  console.log('📞 getUserSupportConversations: Filtering for user\'s OWN support conversations (non-admin user)')
 
   // Group messages by conversation - ONLY SUPPORT CONVERSATIONS where user is involved
   const conversationMap = new Map<string, Message[]>()
