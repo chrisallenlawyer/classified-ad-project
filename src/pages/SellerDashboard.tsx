@@ -215,6 +215,12 @@ export function SellerDashboard() {
                 Subscription
               </button>
               <button
+                onClick={() => navigate('/site-rules')}
+                className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Site Rules
+              </button>
+              <button
                 onClick={() => navigate('/change-password')}
                 className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
               >

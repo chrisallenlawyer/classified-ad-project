@@ -13,6 +13,7 @@ const RegisterForm: React.FC = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [acceptedRules, setAcceptedRules] = useState(false);
   const { signUp } = useAuth();
   const navigate = useNavigate();
 
@@ -37,6 +38,12 @@ const RegisterForm: React.FC = () => {
 
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters long');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!acceptedRules) {
+      setError('You must accept the site rules to create an account');
       setIsLoading(false);
       return;
     }
@@ -172,6 +179,33 @@ const RegisterForm: React.FC = () => {
                 value={formData.confirmPassword}
                 onChange={handleChange}
               />
+            </div>
+          </div>
+
+          {/* Site Rules Acceptance */}
+          <div className="flex items-start">
+            <div className="flex items-center h-5">
+              <input
+                id="acceptRules"
+                name="acceptRules"
+                type="checkbox"
+                checked={acceptedRules}
+                onChange={(e) => setAcceptedRules(e.target.checked)}
+                className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
+              />
+            </div>
+            <div className="ml-3 text-sm">
+              <label htmlFor="acceptRules" className="text-gray-700">
+                I agree to the{' '}
+                <Link
+                  to="/site-rules"
+                  target="_blank"
+                  className="text-indigo-600 hover:text-indigo-500 underline"
+                >
+                  Site Rules and Terms of Service
+                </Link>
+                {' '}for Bama Classifieds
+              </label>
             </div>
           </div>
 

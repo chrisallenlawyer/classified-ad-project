@@ -16,6 +16,7 @@ import ChangePassword from './pages/ChangePassword';
 import ResetPassword from './pages/ResetPassword';
 import SubscriptionManager from './components/SubscriptionManager';
 import SubscriptionDashboard from './components/SubscriptionDashboard';
+import SiteRules from './pages/SiteRules';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -52,6 +53,7 @@ function App() {
                   <Route path="/listing/:id" element={<ListingDetail />} />
                   <Route path="/subscription" element={<SubscriptionManager />} />
                 <Route path="/subscription-dashboard" element={<SubscriptionDashboard />} />
+                <Route path="/site-rules" element={<SiteRules />} />
                 </Routes>
               </main>
             </div>

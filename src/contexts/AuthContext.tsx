@@ -55,6 +55,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         data: userData
       }
     })
+    
+    // If signup was successful, record rules acceptance
+    if (data.user && !error) {
+      try {
+        await supabase.rpc('accept_site_rules', {
+          p_user_id: data.user.id,
+          p_rules_version: '1.0',
+          p_ip_address: null, // Could be enhanced to capture IP
+          p_user_agent: navigator.userAgent
+        });
+      } catch (rulesError) {
+        console.error('Failed to record rules acceptance:', rulesError);
+        // Don't fail the signup if rules recording fails
+      }
+    }
+    
     return { error }
   }
 
