@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserListings, deleteListing, updateListing, Listing, getUnreadMessageCount, getUserFavorites, isEmailVerified } from '../services/supabaseApi';
+import { supabase } from '../lib/supabase';
 import { 
   PlusIcon, 
   PencilIcon, 
@@ -107,6 +108,27 @@ export function SellerDashboard() {
 
   const handleStatusChange = (listingId: string, newStatus: string) => {
     updateListingMutation.mutate({ id: listingId, status: newStatus });
+  };
+
+  const handleResendVerification = async () => {
+    if (!user?.email) return;
+    
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: user.email,
+      });
+      
+      if (error) {
+        alert('Failed to resend verification email. Please try again or contact support.');
+        console.error('Resend error:', error);
+      } else {
+        alert('Verification email sent! Please check your inbox and spam folder.');
+      }
+    } catch (err) {
+      console.error('Error resending verification:', err);
+      alert('Failed to resend verification email. Please try again.');
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -250,10 +272,7 @@ export function SellerDashboard() {
                 </div>
                 <div className="mt-4">
                   <button
-                    onClick={() => {
-                      // Trigger resend verification email
-                      alert('Verification email has been resent. Please check your inbox.');
-                    }}
+                    onClick={handleResendVerification}
                     className="text-sm font-medium text-yellow-800 hover:text-yellow-900 underline"
                   >
                     Resend verification email

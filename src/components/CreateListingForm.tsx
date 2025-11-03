@@ -385,7 +385,19 @@ const CreateListingForm: React.FC = () => {
       navigate(`/listing/${newListing.id}`);
     } catch (err: any) {
       console.error('Error creating listing:', err);
-      setError(err.message || 'Failed to create listing. Please try again.');
+      
+      // Check for specific error types and provide helpful messages
+      const errorMessage = err.message || '';
+      
+      if (errorMessage.includes('Email verification required') || 
+          errorMessage.includes('Email must be verified') ||
+          errorMessage.includes('permission denied for table users')) {
+        setError('Email verification required. Please check your inbox for the verification email and click the confirmation link. Visit your dashboard to resend the verification email if needed.');
+      } else if (errorMessage.includes('Rate limit')) {
+        setError(errorMessage);
+      } else {
+        setError(err.message || 'Failed to create listing. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
