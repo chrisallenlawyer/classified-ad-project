@@ -491,6 +491,13 @@ Reply to: ${guestEmail}
               Thank you for joining Bama Classifieds, Alabama's premier marketplace for buying and selling locally.
             </p>
             
+            <div style="background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 15px; margin: 20px 0; border-radius: 4px;">
+              <p style="color: #92400E; margin: 0; line-height: 1.6;">
+                <strong>📧 Important:</strong> You will receive a separate email from Bama Classifieds with a verification link. 
+                Please click that link to verify your email address before you can create listings.
+              </p>
+            </div>
+            
             <div style="text-align: center; margin: 30px 0;">
               <a href="https://bamaclassifieds.com/create" 
                  style="background: #3B82F6; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
@@ -513,6 +520,8 @@ Reply to: ${guestEmail}
 Hi ${userName}!
 
 Thank you for joining Bama Classifieds, Alabama's premier marketplace for buying and selling locally.
+
+📧 IMPORTANT: You will receive a separate email from Bama Classifieds with a verification link. Please click that link to verify your email address before you can create listings.
 
 Get started: https://bamaclassifieds.com/create
 
