@@ -15,7 +15,7 @@ import {
   XMarkIcon,
   ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
-import { getCategories, createCategory, updateCategory, deleteCategory, getListings, updateListing, deleteListing, getUsers, updateUserRole, isUserAdmin } from '../services/supabaseApi';
+import { getCategories, createCategory, updateCategory, deleteCategory, getListings, updateListing, deleteListing, getUsers, updateUserRole, isUserAdmin, deleteUser } from '../services/supabaseApi';
 import { SupportMessages } from '../components/SupportMessages';
 import { useAuth } from '../contexts/AuthContext';
 import { ColorPaletteManager } from '../components/ColorPaletteManager';
@@ -95,6 +95,8 @@ export function AdminDashboard() {
   const [showUserDetailModal, setShowUserDetailModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<any>(null);
   const [showListingDetailModal, setShowListingDetailModal] = useState(false);
   const [selectedListing, setSelectedListing] = useState<any>(null);
   const [listingSearchTerm, setListingSearchTerm] = useState('');
@@ -156,6 +158,27 @@ export function AdminDashboard() {
     } catch (error) {
       console.error('Error updating user admin status:', error);
       alert('Failed to update user admin status. Please try again.');
+    }
+  };
+
+  const handleDeleteUserClick = (user: any) => {
+    setUserToDelete(user);
+    setShowDeleteUserModal(true);
+  };
+
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    try {
+      await deleteUser(userToDelete.id);
+      // Refresh users list
+      queryClient.invalidateQueries('admin-users');
+      setShowDeleteUserModal(false);
+      setUserToDelete(null);
+      alert('User deleted successfully');
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      alert('Failed to delete user. Please try again.');
     }
   };
 
@@ -930,6 +953,16 @@ export function AdminDashboard() {
                         >
                           {user.is_admin ? 'Remove Admin' : 'Make Admin'}
                         </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteUserClick(user);
+                          }}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                          title="Delete user"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
                         <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
@@ -1540,6 +1573,77 @@ export function AdminDashboard() {
       {/* Pricing Manager Modal */}
       {showPricingManager && (
         <PricingManager onClose={() => setShowPricingManager(false)} />
+      )}
+
+      {/* Delete User Confirmation Modal */}
+      {showDeleteUserModal && userToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Delete User</h3>
+              <button
+                onClick={() => {
+                  setShowDeleteUserModal(false);
+                  setUserToDelete(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                  <TrashIcon className="h-6 w-6 text-red-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-900">
+                    Are you sure you want to delete this user?
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {userToDelete.first_name && userToDelete.last_name 
+                      ? `${userToDelete.first_name} ${userToDelete.last_name}` 
+                      : userToDelete.email}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-yellow-800">
+                      <strong>Warning:</strong> This action cannot be undone. All user data, listings, messages, and related content will be permanently deleted.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteUserModal(false);
+                    setUserToDelete(null);
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmDeleteUser}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  Delete User
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Category Change Modal */}

@@ -2090,3 +2090,22 @@ export const isUserAdmin = (user: any): boolean => {
   
   return false;
 }
+
+export const deleteUser = async (userId: string): Promise<void> => {
+  try {
+    // Delete user using Supabase admin API
+    // Note: This requires the service_role key or a database function
+    const { error } = await supabase
+      .rpc('delete_user_account', {
+        target_user_id: userId
+      });
+
+    if (error) {
+      console.error('Error deleting user:', error);
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error in deleteUser:', error);
+    throw error;
+  }
+}
