@@ -2109,3 +2109,115 @@ export const deleteUser = async (userId: string): Promise<void> => {
     throw error;
   }
 }
+
+// Rate Limiting API
+
+// Rate limit configurations
+export const RATE_LIMITS = {
+  listing_created: {
+    perHour: 3,
+    perDay: 10
+  },
+  message_sent: {
+    perHour: 20,
+    perDay: 100
+  },
+  listing_edited: {
+    perHour: 5,
+    perDay: 20
+  },
+  contact_seller: {
+    perHour: 10,
+    perDay: 50
+  }
+} as const;
+
+export type RateLimitAction = keyof typeof RATE_LIMITS;
+
+// Check if user has exceeded rate limits
+export const checkRateLimit = async (
+  userId: string, 
+  actionType: RateLimitAction
+): Promise<boolean> => {
+  try {
+    const limits = RATE_LIMITS[actionType];
+    const { data, error } = await supabase.rpc('check_rate_limit', {
+      p_user_id: userId,
+      p_action_type: actionType,
+      p_max_per_hour: limits.perHour,
+      p_max_per_day: limits.perDay
+    });
+    
+    if (error) {
+      console.error('Rate limit check error:', error);
+      // Fail open - allow action if check fails
+      return true;
+    }
+    
+    return data === true;
+  } catch (error) {
+    console.error('Error in checkRateLimit:', error);
+    // Fail open - allow action if check fails
+    return true;
+  }
+};
+
+// Log user activity for rate limiting
+export const logActivity = async (
+  userId: string,
+  actionType: RateLimitAction,
+  details?: any
+): Promise<void> => {
+  try {
+    const { error } = await supabase.rpc('log_user_activity', {
+      p_user_id: userId,
+      p_action_type: actionType,
+      p_action_details: details ? JSON.parse(JSON.stringify(details)) : null,
+      p_ip_address: null // Could add IP tracking if needed
+    });
+    
+    if (error) {
+      console.error('Error logging activity:', error);
+    }
+  } catch (error) {
+    console.error('Error in logActivity:', error);
+  }
+};
+
+// Get user's activity count for display
+export const getUserActivityCount = async (
+  userId: string,
+  actionType: RateLimitAction,
+  hours: number = 24
+): Promise<{ total: number; lastHour: number; last24h: number } | null> => {
+  try {
+    const { data, error } = await supabase.rpc('get_user_activity_count', {
+      p_user_id: userId,
+      p_action_type: actionType,
+      p_hours: hours
+    });
+    
+    if (error) {
+      console.error('Error getting activity count:', error);
+      return null;
+    }
+    
+    if (data && data.length > 0) {
+      return {
+        total: Number(data[0].total_count),
+        lastHour: Number(data[0].last_hour_count),
+        last24h: Number(data[0].last_24h_count)
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error in getUserActivityCount:', error);
+    return null;
+  }
+};
+
+// Check if user's email is verified
+export const isEmailVerified = (user: any): boolean => {
+  return user?.email_confirmed_at !== null && user?.email_confirmed_at !== undefined;
+};

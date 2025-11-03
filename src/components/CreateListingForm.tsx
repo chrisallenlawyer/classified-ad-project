@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { createListingWithImages, getCategories, Category, UploadedImage, uploadMultipleImages } from '../services/supabaseApi';
+import { createListingWithImages, getCategories, Category, UploadedImage, uploadMultipleImages, checkRateLimit, logActivity, isEmailVerified, RATE_LIMITS } from '../services/supabaseApi';
 import { subscriptionApi } from '../services/subscriptionApi';
 import PaymentForm from './PaymentForm';
 import { 
@@ -368,6 +368,15 @@ const CreateListingForm: React.FC = () => {
       const newListing = await createListingWithImages(listingData, user);
       console.log('Listing created successfully:', newListing);
       
+      // SPAM PREVENTION: Log activity for rate limiting
+      if (user) {
+        await logActivity(user.id, 'listing_created', {
+          listing_id: newListing.id,
+          listing_type: listingData.listing_type,
+          is_featured: isFeatured
+        });
+      }
+      
       // Refresh usage data to reflect the new listing
       await refreshUsageData();
       
@@ -392,6 +401,29 @@ const CreateListingForm: React.FC = () => {
     setIsLoading(true);
     setError('');
     setLimitError('');
+
+    // SPAM PREVENTION: Check email verification
+    if (user && !isEmailVerified(user)) {
+      setError('Please verify your email address before creating a listing. Check your inbox for the verification email.');
+      setIsLoading(false);
+      return;
+    }
+
+    // SPAM PREVENTION: Check rate limiting
+    if (user) {
+      try {
+        const canCreate = await checkRateLimit(user.id, 'listing_created');
+        if (!canCreate) {
+          const limits = RATE_LIMITS.listing_created;
+          setError(`Rate limit exceeded. You can only create ${limits.perHour} listings per hour or ${limits.perDay} listings per day. Please try again later.`);
+          setIsLoading(false);
+          return;
+        }
+      } catch (rateLimitError) {
+        console.error('Error checking rate limit:', rateLimitError);
+        // Continue anyway - don't block user if rate limit check fails
+      }
+    }
 
     // Check subscription limits first
     if (user && formData.listing_type) {
